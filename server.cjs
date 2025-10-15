@@ -4,7 +4,7 @@ const express = require('express');
 const helmet = require('helmet');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
-const rateLimit = require('express-rate-limit').rateLimit || require('express-rate-limit');
+const rateLimit = require('express-rate-limit');
 const { Server } = require('socket.io');
 require('dotenv').config();
 
