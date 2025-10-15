@@ -1,313 +1,317 @@
-// ===== Cấu hình cơ bản =====
-const CELL = 60;                      // mỗi ô 60px
-const WIDTH = CELL * 9, HEIGHT = CELL * 10;
-const svg = document.getElementById("svg");
-const turnEl = document.getElementById("turn");
+/* Xiangqi SVG board + full move & capture basics
+   Tác giả: bạn ChatGPT
+   Lưới 9x10, mỗi ô 60px. Tọa độ logic: x=0..8 (cột), y=0..9 (hàng)
+*/
 
-// helper tạo phần tử SVG
-function S(tag, attrs={}){ const e=document.createElementNS("http://www.w3.org/2000/svg", tag);
-  for(const k in attrs) e.setAttribute(k, attrs[k]); return e; }
+const W = 540, H = 600, CELL = 60;
 
-// vẽ BÀN CỜ chuẩn (lưới, sông, chéo cung)
-function drawBoard(){
-  // nền bàn (màu vàng)
-  svg.append(S("rect",{x:0,y:0,width:WIDTH,height:HEIGHT,fill:"#f2bd6a"}));
+// ======= tiện ích toạ độ & DOM =======
+const xy2px = (x, y) => ({ cx: 30 + x * CELL, cy: 30 + y * CELL });
+const inside = (x, y) => x>=0 && x<=8 && y>=0 && y<=9;
+const same = (a,b)=> a.x===b.x && a.y===b.y;
 
-  // sông (khoảng trống giữa 2 hàng 4/5)
-  svg.append(S("rect",{x:0,y:CELL*4,width:WIDTH,height:CELL,fill:"#f2bd6a"})); // cùng màu nền
+const boardEl = document.getElementById('board');
+const grid = document.getElementById('grid');
+const piecesLayer = document.getElementById('pieces');
+const hintsLayer = document.getElementById('hints');
 
-  // viền khung bàn trong (đen)
-  svg.append(S("rect",{x:0.5,y:0.5,width:WIDTH-1,height:HEIGHT-1,fill:"none",stroke:"#000","stroke-width":2}));
+// ======= vẽ lưới, sông, cung =======
+function drawBoard() {
+  const g = [];
+  // nền trong khung (vàng đậm hơn)
+  g.push(`<rect x="20" y="20" width="${W-40}" height="${H-40}" rx="2" ry="2" fill="#e6b061" stroke="#8a4e14" stroke-width="2"/>`);
 
-  // kẻ dọc (9 cột)
-  for(let c=0;c<9;c++){
-    const x= c*CELL+0.5;
-    // đoạn trên
-    svg.append(S("line",{x1:x,y1:0,x2:x,y2:CELL*4,stroke:"#000"}));
-    // đoạn dưới
-    svg.append(S("line",{x1:x,y1:CELL*5,x2:x,y2:HEIGHT,stroke:"#000"}));
+  // kẻ lưới (9 cột x 10 hàng), để chừa sông (khoảng giữa 2 hàng y=4..5 không nối dọc)
+  for (let r = 0; r <= 9; r++) {
+    const y = 30 + r * CELL;
+    g.push(`<line x1="30" y1="${y}" x2="${W-30}" y2="${y}" stroke="#3b2b17" stroke-width="2" />`);
   }
-  // kẻ ngang (10 hàng)
-  for(let r=0;r<10;r++){
-    const y=r*CELL+0.5;
-    svg.append(S("line",{x1:0,y1:y,x2:WIDTH,y2:y,stroke:"#000"}));
+  // cột: ngắt ở sông
+  for (let c = 0; c <= 8; c++) {
+    const x = 30 + c * CELL;
+    // trên
+    g.push(`<line x1="${x}" y1="30" x2="${x}" y2="${30 + 4*CELL}" stroke="#3b2b17" stroke-width="2" />`);
+    // dưới
+    g.push(`<line x1="${x}" y1="${30 + 5*CELL}" x2="${x}" y2="${30 + 9*CELL}" stroke="#3b2b17" stroke-width="2" />`);
   }
+  // cung (hai ô 3x3 với đường chéo X)
+  // cung trên (đen)
+  g.push(diagonals(3, 0));
+  // cung dưới (đỏ)
+  g.push(diagonals(3, 7));
 
-  // chữ "楚河  漢界"
-  const river = S("text",{x:WIDTH/2,y:CELL*4.5, "text-anchor":"middle",
-    "dominant-baseline":"central", "font-size":"32", "font-family":"Noto Serif SC, serif",
-    fill:"#6c3b00", opacity:.75});
-  river.textContent="楚 河    漢 界";
-  svg.append(river);
+  // sông
+  g.push(`<rect x="30" y="${30 + 4*CELL}" width="${CELL*8}" height="${CELL}" fill="#e8a24d" />`);
+  // chữ sông (đơn giản cho gọn)
+  g.push(`<text x="${W/2-70}" y="${30 + 4.5*CELL}" font-size="28" fill="#3b2b17">楚河</text>`);
+  g.push(`<text x="${W/2+25}" y="${30 + 4.5*CELL}" font-size="28" fill="#3b2b17">漢界</text>`);
 
-  // cung Tướng (trên & dưới) với 2 đường chéo
-  function palace(y0){
-    // khung 3x3
-    svg.append(S("rect",{x:3*CELL+0.5,y:y0+0.5,width:CELL*3-1,height:CELL*3-1,fill:"none",stroke:"#000"}));
-    // chéo
-    svg.append(S("line",{x1:3*CELL+0.5,y1:y0+0.5,x2:6*CELL-0.5,y2:y0+3*CELL-0.5,stroke:"#000"}));
-    svg.append(S("line",{x1:6*CELL-0.5,y1:y0+0.5,x2:3*CELL+0.5,y2:y0+3*CELL-0.5,stroke:"#000"}));
-  }
-  palace(0);
-  palace(CELL*7);
+  grid.innerHTML = g.join('');
 }
 
-// ===== Trạng thái bàn cờ =====
-const RED="red", BLACK="black";
+function diagonals(leftCol, topRow){
+  const x1 = 30 + leftCol*CELL, x2 = x1 + 2*CELL, xc = x1 + CELL;
+  const y1 = 30 + topRow*CELL, y2 = y1 + 2*CELL, yc = y1 + CELL;
+  return `
+    <rect x="${x1}" y="${y1}" width="${CELL*2}" height="${CELL*2}" fill="none" stroke="#3b2b17" stroke-width="2"/>
+    <line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#3b2b17" stroke-width="2"/>
+    <line x1="${x2}" y1="${y1}" x2="${x1}" y2="${y2}" stroke="#3b2b17" stroke-width="2"/>
+  `;
+}
 
-// bố trí chuẩn (x:0..8, y:0..9)
+// ======= dữ liệu quân & sắp xếp =======
+const RED = 'red', BLACK = 'black';
+
+const C = {
+  R: '車', N: '馬', B: '相', A: '仕', K: '帥', C: '炮', P: '兵',
+  rR:'車', rN:'馬', rB:'象', rA:'士', rK:'將', rC:'砲', rP:'卒'
+};
+// khởi tạo theo chuẩn (đen trên – dùng ký tự tương ứng)
 let pieces = [
-  // ĐEN (trên)
-  P("r",BLACK,0,0), P("n",BLACK,1,0), P("b",BLACK,2,0), P("a",BLACK,3,0),
-  P("k",BLACK,4,0), P("a",BLACK,5,0), P("b",BLACK,6,0), P("n",BLACK,7,0), P("r",BLACK,8,0),
-  P("c",BLACK,1,2), P("c",BLACK,7,2),
-  ...[0,2,4,6,8].map(x=>P("p",BLACK,x,3)),
+  // đen (trên)
+  {t:'rR', c:BLACK, x:0,y:0}, {t:'rN', c:BLACK, x:1,y:0}, {t:'rB', c:BLACK, x:2,y:0}, {t:'rA', c:BLACK, x:3,y:0}, {t:'rK', c:BLACK, x:4,y:0}, {t:'rA', c:BLACK, x:5,y:0}, {t:'rB', c:BLACK, x:6,y:0}, {t:'rN', c:BLACK, x:7,y:0}, {t:'rR', c:BLACK, x:8,y:0},
+  {t:'rC', c:BLACK, x:1,y:2}, {t:'rC', c:BLACK, x:7,y:2},
+  {t:'rP', c:BLACK, x:0,y:3}, {t:'rP', c:BLACK, x:2,y:3}, {t:'rP', c:BLACK, x:4,y:3}, {t:'rP', c:BLACK, x:6,y:3}, {t:'rP', c:BLACK, x:8,y:3},
 
-  // ĐỎ (dưới)
-  P("r",RED,0,9), P("n",RED,1,9), P("b",RED,2,9), P("a",RED,3,9),
-  P("k",RED,4,9), P("a",RED,5,9), P("b",RED,6,9), P("n",RED,7,9), P("r",RED,8,9),
-  P("c",RED,1,7), P("c",RED,7,7),
-  ...[0,2,4,6,8].map(x=>P("p",RED,x,6)),
+  // đỏ (dưới)
+  {t:'R', c:RED, x:0,y:9}, {t:'N', c:RED, x:1,y:9}, {t:'B', c:RED, x:2,y:9}, {t:'A', c:RED, x:3,y:9}, {t:'K', c:RED, x:4,y:9}, {t:'A', c:RED, x:5,y:9}, {t:'B', c:RED, x:6,y:9}, {t:'N', c:RED, x:7,y:9}, {t:'R', c:RED, x:8,y:9},
+  {t:'C', c:RED, x:1,y:7}, {t:'C', c:RED, x:7,y:7},
+  {t:'P', c:RED, x:0,y:6}, {t:'P', c:RED, x:2,y:6}, {t:'P', c:RED, x:4,y:6}, {t:'P', c:RED, x:6,y:6}, {t:'P', c:RED, x:8,y:6},
 ];
 
-function P(type,color,x,y){ return {id:crypto.randomUUID(), type,color,x,y,dead:false}; }
+// tra cứu quân ở ô
+const at = (x,y)=> pieces.find(p => p.x===x && p.y===y);
 
-// ký hiệu hiển thị
-const TEXT = {
-  [RED]:  { r:"車", n:"馬", b:"相", a:"仕", k:"帥", c:"炮", p:"兵" },
-  [BLACK]:{ r:"車", n:"馬", b:"象", a:"士", k:"將", c:"砲", p:"卒" },
+// ======= vẽ quân =======
+function drawPieces(selected=null, moves=[]) {
+  piecesLayer.innerHTML = pieces.map((p, idx) => {
+    const {cx,cy} = xy2px(p.x,p.y);
+    const txt = (p.c===RED)
+      ? C[p.t] ?? C[p.t.toUpperCase()]
+      : C[p.t] ?? C['r'+p.t];
+    return `
+      <g class="piece ${p.c} ${selected===idx?'selected':''}" data-i="${idx}">
+        <circle cx="${cx}" cy="${cy}" r="24"></circle>
+        <text x="${cx}" y="${cy+1}">${txt}</text>
+      </g>
+    `;
+  }).join('');
+
+  // hints
+  hintsLayer.innerHTML = moves.map(m=>{
+    const {cx,cy} = xy2px(m.x,m.y);
+    const cap = at(m.x,m.y);
+    return `<circle class="hint ${cap?'capture':''}" cx="${cx}" cy="${cy}" r="18" data-m="${m.x},${m.y}"></circle>`;
+  }).join('');
+}
+
+// ======= sinh nước đi =======
+// vùng cung
+const inPalace = (c,x,y)=>{
+  if(c===RED)   return (x>=3 && x<=5 && y>=7 && y<=9);
+  if(c===BLACK) return (x>=3 && x<=5 && y>=0 && y<=2);
+  return false;
 };
+// qua sông?
+const crossed = (c,y)=> c===RED ? y<=4 : y>=5;
 
-// ===== Vẽ quân lên SVG =====
-let gPieces = S("g"); svg.append(gPieces);
-let gUI = S("g"); svg.append(gUI); // layer highlight
-
-function drawPieces(){
-  gPieces.innerHTML="";
-  for(const pc of pieces.filter(p=>!p.dead)){
-    const group = S("g", {class:`piece ${pc.color}`, "data-id":pc.id,
-      transform:`translate(${pc.x*CELL},${pc.y*CELL})`});
-    const cx=CELL/2, cy=CELL/2, r=23;
-
-    group.append(S("circle",{class:"stone", cx,cy,r}));
-    const t = S("text",{class:"label", x:cx, y:cy});
-    t.textContent = TEXT[pc.color][pc.type];
-    group.append(t);
-
-    group.addEventListener("click", onPieceClick);
-    gPieces.append(group);
+// đường đi thẳng cho Xe/Pháo (trả về các ô trống đến khi gặp chướng ngại)
+function ray(x,y,dx,dy){
+  const out=[];
+  let nx=x+dx, ny=y+dy;
+  while(inside(nx,ny) && !at(nx,ny)){
+    out.push({x:nx,y:ny});
+    nx+=dx; ny+=dy;
   }
+  return { path: out, block: inside(nx,ny)?{x:nx,y:ny}:null };
 }
 
-// ===== Tương tác & luật đi =====
-let turn = RED;                 // Đỏ đi trước
-let selected = null;            // quân đang chọn
-let hlCells = [];               // highlight
+function legalMoves(i){
+  const p = pieces[i]; if(!p) return [];
+  const M = [];
+  const pushIf = (x,y)=> { if(!inside(x,y)) return;
+    const occ=at(x,y);
+    if(!occ) M.push({x,y});
+    else if(occ.c!==p.c) M.push({x,y}); // ăn quân
+  };
 
-function setTurnUI(){
-  turnEl.innerHTML = `Lượt: <b>${turn===RED?"Đỏ":"Đen"}</b>`;
-}
-
-function clearHL(){
-  hlCells.forEach(e=>e.remove());
-  hlCells.length = 0;
-}
-
-function addHLCell(x,y, cls="hl-cell"){
-  const rect = S("rect",{x:x*CELL+1,y:y*CELL+1,width:CELL-2,height:CELL-2, class:cls});
-  gUI.append(rect); hlCells.push(rect);
-}
-
-function onPieceClick(e){
-  const id = e.currentTarget.getAttribute("data-id");
-  const pc = pieces.find(p=>p.id===id);
-  if(!pc || pc.color!==turn) return;
-
-  // chọn mới
-  clearHL(); selected = pc;
-  addHLCell(pc.x, pc.y, "hl-cell");
-
-  // gợi ý các ô đi hợp lệ
-  const moves = legalMoves(pc, pieces);
-  for(const m of moves){
-    addHLCell(m.x, m.y, "hl-target");
+  switch(p.t){
+    case 'K': case 'rK': { // Tướng/Soái – đi 4 hướng trong cung, không “đối mặt”
+      [[1,0],[-1,0],[0,1],[0,-1]].forEach(([dx,dy])=>{
+        const x=p.x+dx, y=p.y+dy;
+        if(inPalace(p.c,x,y)){
+          // kiểm tra đối mặt
+          if(!facesKing(p, {x,y})) pushIf(x,y);
+        }
+      });
+      break;
+    }
+    case 'A': case 'rA': { // Sĩ – chéo 1 trong cung
+      [[1,1],[1,-1],[-1,1],[-1,-1]].forEach(([dx,dy])=>{
+        const x=p.x+dx, y=p.y+dy;
+        if(inPalace(p.c,x,y)) pushIf(x,y);
+      });
+      break;
+    }
+    case 'B': case 'rB': { // Tượng/Elephant – chéo 2, không qua sông, chặn ở “tiểu nhãn”
+      [[2,2],[2,-2],[-2,2],[-2,-2]].forEach(([dx,dy])=>{
+        const x=p.x+dx, y=p.y+dy;
+        const eye = {x:p.x+dx/2, y:p.y+dy/2};
+        if( inside(x,y) && at(eye.x,eye.y)==null ){
+          // không qua sông
+          if(p.c===RED && y>=5) pushIf(x,y);
+          if(p.c===BLACK && y<=4) pushIf(x,y);
+        }
+      });
+      break;
+    }
+    case 'N': case 'rN': { // Mã – (1,2) kiểu L, chặn “chân mã”
+      const steps = [
+        {leg:[1,0], move:[2,1]}, {leg:[1,0], move:[2,-1]},
+        {leg:[-1,0], move:[-2,1]}, {leg:[-1,0], move:[-2,-1]},
+        {leg:[0,1], move:[1,2]}, {leg:[0,1], move:[-1,2]},
+        {leg:[0,-1], move:[1,-2]}, {leg:[0,-1], move:[-1,-2]},
+      ];
+      steps.forEach(s=>{
+        const lx=p.x+s.leg[0], ly=p.y+s.leg[1];
+        if(at(lx,ly)) return; // bị chặn
+        const x=p.x+s.move[0], y=p.y+s.move[1];
+        pushIf(x,y);
+      });
+      break;
+    }
+    case 'R': case 'rR': { // Xe – thẳng 4 hướng
+      [[1,0],[-1,0],[0,1],[0,-1]].forEach(([dx,dy])=>{
+        const r = ray(p.x,p.y,dx,dy);
+        r.path.forEach(q=>M.push(q));
+        if(r.block){
+          const occ = at(r.block.x, r.block.y);
+          if(occ && occ.c!==p.c) M.push(r.block);
+        }
+      });
+      break;
+    }
+    case 'C': case 'rC': { // Pháo – đi như Xe nhưng ăn phải “qua 1 màn”
+      [[1,0],[-1,0],[0,1],[0,-1]].forEach(([dx,dy])=>{
+        const r = ray(p.x,p.y,dx,dy);
+        r.path.forEach(q=>M.push(q)); // đi thường
+        if(r.block){
+          // tìm đúng 1 màn rồi mới ăn
+          let nx=r.block.x+dx, ny=r.block.y+dy; // sau màn
+          while(inside(nx,ny) && !at(nx,ny)){ nx+=dx; ny+=dy; }
+          if(inside(nx,ny)){
+            const occ = at(nx,ny);
+            if(occ && occ.c!==p.c) M.push({x:nx,y:ny});
+          }
+        }
+      });
+      break;
+    }
+    case 'P': case 'rP': { // Tốt/Binh
+      const dir = (p.c===RED)? -1 : 1; // đỏ đi lên, đen đi xuống theo toạ độ y
+      pushIf(p.x, p.y+dir);
+      if(crossed(p.c, p.y)){
+        pushIf(p.x-1, p.y);
+        pushIf(p.x+1, p.y);
+      }
+      break;
+    }
   }
+
+  // loại nước làm tướng “đối mặt” (rule chung)
+  return M.filter(m => !kingsFaceAfterMove(i,m));
 }
 
-svg.addEventListener("click", (e)=>{
-  if(!selected) return;
-  // tìm tọa độ ô click (nếu click trúng khoảng trống)
-  const pt = svg.createSVGPoint(); pt.x=e.clientX; pt.y=e.clientY;
-  const m = svg.getScreenCTM().inverse(); const p = pt.matrixTransform(m);
-  const x = Math.floor(p.x / CELL), y = Math.floor(p.y / CELL);
-  if(x<0||x>8||y<0||y>9) return;
-
-  const target = pieceAt(x,y);
-  const cand = legalMoves(selected, pieces).find(m=>m.x===x&&m.y===y);
-  if(!cand) return;
-
-  // ăn quân (nếu có)
-  if(target && target.color!==selected.color){
-    target.dead = true;
+// kiểm “đối mặt tướng” hiện tại nếu tướng đi đến (nx,ny)
+function facesKing(king, toPos){
+  // lấy tướng còn lại
+  const other = pieces.find(p => (p.t==='K' || p.t==='rK') && p.c!==king.c);
+  const kx = toPos.x, ky = toPos.y, ox = other.x, oy = other.y;
+  if(kx!==ox) return false;
+  // đếm vật cản giữa 2 tướng theo cột
+  let minY = Math.min(ky, oy), maxY = Math.max(ky, oy), blocks=0;
+  for(let y=minY+1; y<maxY; y++) if(at(kx,y)) blocks++;
+  return blocks===0;
+}
+// kiểm sau khi di chuyển nước m (giảm clone tối đa)
+function kingsFaceAfterMove(i, m){
+  const saved = {x:pieces[i].x, y:pieces[i].y};
+  const capIndex = pieces.findIndex(q => q.x===m.x && q.y===m.y);
+  // tạm áp dụng
+  pieces[i].x = m.x; pieces[i].y = m.y;
+  let captured; if(capIndex>=0){ captured = pieces[capIndex]; pieces.splice(capIndex,1); }
+  // check
+  const kRed   = pieces.find(p=>p.t==='K' || (p.t==='K' && p.c===RED));
+  const kBlack = pieces.find(p=>p.t==='rK' || (p.t==='rK' && p.c===BLACK));
+  let face=false;
+  if(kRed && kBlack && kRed.x===kBlack.x){
+    let minY=Math.min(kRed.y,kBlack.y), maxY=Math.max(kRed.y,kBlack.y), blocks=0;
+    for(let y=minY+1;y<maxY;y++) if(at(y===-1?999: kRed.x, y)) blocks++;
+    face = (blocks===0);
   }
-  // di chuyển
-  selected.x = x; selected.y = y;
+  // revert
+  if(captured) pieces.splice(capIndex,0,captured);
+  pieces[i].x = saved.x; pieces[i].y = saved.y;
+  return face;
+}
 
-  // Không cho “tướng đối mặt” – nếu vi phạm, hoàn tác
-  if(flyingGeneralFacing()){
-    // hoàn tác
-    if(target) target.dead=false;
-    selected.x = cand.from.x; selected.y = cand.from.y;
+// ======= tương tác =======
+let turn = RED; // đỏ đi trước
+let selected = null;
+let currentMoves = [];
+
+function refresh(){
+  drawPieces(selected, currentMoves);
+}
+
+function onBoardClick(evt){
+  const target = evt.target;
+
+  // click vào gợi ý
+  if(target.classList.contains('hint')){
+    const [mx,my] = target.getAttribute('data-m').split(',').map(Number);
+    moveTo(selected, {x:mx, y:my});
     return;
   }
 
-  // xong nước, đổi lượt
-  selected = null; clearHL(); drawPieces();
-  turn = (turn===RED?BLACK:RED); setTurnUI();
-});
-
-function pieceAt(x,y){ return pieces.find(p=>!p.dead && p.x===x && p.y===y); }
-function betweenClear(x1,y1,x2,y2){
-  if(x1===x2){
-    const [a,b]= y1<y2?[y1,y2]:[y2,y1];
-    for(let y=a+1;y<b;y++) if(pieceAt(x1,y)) return false;
-    return true;
-  }else if(y1===y2){
-    const [a,b]= x1<x2?[x1,x2]:[x2,x1];
-    for(let x=a+1;x<b;x++) if(pieceAt(x,y1)) return false;
-    return true;
+  // click vào quân
+  const g = target.closest('.piece');
+  if(!g){ // click nền -> bỏ chọn
+    selected = null; currentMoves = []; refresh();
+    return;
   }
-  return false;
+  const i = +g.getAttribute('data-i');
+  const p = pieces[i];
+  if(p.c !== turn){ // không phải lượt
+    return;
+  }
+  if(selected===i){ // bỏ chọn nếu chọn lại
+    selected = null; currentMoves = []; refresh();
+    return;
+  }
+  selected = i;
+  currentMoves = legalMoves(i);
+  refresh();
 }
 
-// kiểm tra “tướng đối mặt” (không quân nào giữa 2 tướng trên cùng cột)
-function flyingGeneralFacing(){
-  const kr = pieces.find(p=>!p.dead && p.type==="k" && p.color===RED);
-  const kb = pieces.find(p=>!p.dead && p.type==="k" && p.color===BLACK);
-  if(kr.x!==kb.x) return false;
-  const x = kr.x, [ya,yb]= kr.y<kb.y?[kr.y,kb.y]:[kb.y,kr.y];
-  for(let y=ya+1;y<yb;y++) if(pieceAt(x,y)) return false;
-  return true;
+function moveTo(i, m){
+  if(i==null) return;
+  // ăn quân (nếu có)
+  const capIdx = pieces.findIndex(q => q.x===m.x && q.y===m.y);
+  if(capIdx>=0) pieces.splice(capIdx,1);
+
+  pieces[i].x = m.x; pieces[i].y = m.y;
+
+  // đổi lượt
+  turn = (turn===RED? BLACK: RED);
+  selected = null; currentMoves = [];
+  refresh();
 }
 
-// ===== Luật đi cho từng loại quân =====
-function legalMoves(pc, all){
-  const moves = [];
-  const add = (x,y)=>{
-    if(x<0||x>8||y<0||y>9) return;
-    const t = pieceAt(x,y);
-    if(!t || t.color!==pc.color){
-      moves.push({x,y,from:{x:pc.x,y:pc.y}});
-    }
-  };
-  const same = (x,y)=> x===pc.x && y===pc.y;
+piecesLayer.addEventListener('click', onBoardClick);
+hintsLayer.addEventListener('click', onBoardClick);
+grid.addEventListener('click', onBoardClick);
 
-  const riverSide = (color)=> color===RED ? "south":"north";
-  const inPalace = (x,y,color)=>{
-    const xr = (x>=3 && x<=5);
-    const yr = color===RED ? (y>=7 && y<=9) : (y>=0 && y<=2);
-    return xr && yr;
-  };
-  const beyondRiver = (y,color)=> color===RED ? (y<=4) : (y>=5);
-
-  switch(pc.type){
-    case "r": // xe
-      for(let x=pc.x+1; x<9; x++){ const t=pieceAt(x,pc.y); add(x,pc.y); if(t) break; }
-      for(let x=pc.x-1; x>=0; x--){ const t=pieceAt(x,pc.y); add(x,pc.y); if(t) break; }
-      for(let y=pc.y+1; y<10; y++){ const t=pieceAt(pc.x,y); add(pc.x,y); if(t) break; }
-      for(let y=pc.y-1; y>=0; y--){ const t=pieceAt(pc.x,y); add(pc.x,y); if(t) break; }
-      break;
-
-    case "c": // pháo
-      // đi thường như xe (đường trống)
-      const tryLine = (dx,dy)=>{
-        let x=pc.x+dx, y=pc.y+dy, jumped=false;
-        while(x>=0&&x<9&&y>=0&&y<10){
-          const t=pieceAt(x,y);
-          if(!jumped){
-            if(!t){ add(x,y); }
-            else jumped=true;
-          }else{
-            if(t && t.color!==pc.color){ add(x,y); }
-            break;
-          }
-          x+=dx; y+=dy;
-        }
-      };
-      tryLine(1,0); tryLine(-1,0); tryLine(0,1); tryLine(0,-1);
-      break;
-
-    case "n": // mã (chân ngựa)
-      const KN = [
-        {dx:1,dy:2, block:{x:pc.x, y:pc.y+1}},
-        {dx:-1,dy:2, block:{x:pc.x, y:pc.y+1}},
-        {dx:1,dy:-2, block:{x:pc.x, y:pc.y-1}},
-        {dx:-1,dy:-2, block:{x:pc.x, y:pc.y-1}},
-        {dx:2,dy:1, block:{x:pc.x+1, y:pc.y}},
-        {dx:-2,dy:1, block:{x:pc.x-1, y:pc.y}},
-        {dx:2,dy:-1, block:{x:pc.x+1, y:pc.y}},
-        {dx:-2,dy:-1, block:{x:pc.x-1, y:pc.y}},
-      ];
-      for(const k of KN){
-        if(pieceAt(k.block.x,k.block.y)) continue;
-        add(pc.x+k.dx, pc.y+k.dy);
-      }
-      break;
-
-    case "b": // tượng/elephant – đi chéo 2, chặn "mắt", không qua sông
-      const EB = [[2,2],[2,-2],[-2,2],[-2,-2]];
-      for(const [dx,dy] of EB){
-        const mx=pc.x+dx/2, my=pc.y+dy/2;
-        const x=pc.x+dx, y=pc.y+dy;
-        if(pieceAt(mx,my)) continue;
-        // cấm qua sông
-        if(pc.color===RED && y<=4) continue;
-        if(pc.color===BLACK && y>=5) continue;
-        add(x,y);
-      }
-      break;
-
-    case "a": // sĩ – chéo 1 trong cung
-      for(const [dx,dy] of [[1,1],[1,-1],[-1,1],[-1,-1]]){
-        const x=pc.x+dx, y=pc.y+dy;
-        if(inPalace(x,y,pc.color)) add(x,y);
-      }
-      break;
-
-    case "k": // tướng – đi 1 ô thẳng trong cung, không đối mặt
-      for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){
-        const x=pc.x+dx, y=pc.y+dy;
-        if(inPalace(x,y,pc.color)) add(x,y);
-      }
-      // “tướng bay” ăn thẳng tướng đối phương nếu không có quân cản
-      const enemyK = pieces.find(p=>!p.dead && p.type==="k" && p.color!==pc.color);
-      if(enemyK && enemyK.x===pc.x && betweenClear(pc.x,pc.y,enemyK.x,enemyK.y)){
-        add(enemyK.x, enemyK.y);
-      }
-      break;
-
-    case "p": // tốt/binh – đi 1 bước: trước khi qua sông chỉ tiến, sau đó tiến hoặc ngang
-      const dir = pc.color===RED ? -1 : 1; // RED đi lên (y giảm), BLACK đi xuống (y tăng)
-      add(pc.x, pc.y+dir);
-      if(beyondRiver(pc.y, pc.color)){ add(pc.x-1, pc.y); add(pc.x+1, pc.y); }
-      break;
-  }
-  // loại các nước khiến tướng 2 bên đối mặt sau khi đi
-  const safe = [];
-  for(const m of moves){
-    const back = {x:pc.x,y:pc.y};
-    const target = pieceAt(m.x,m.y);
-    if(target && target.color!==pc.color) target.dead=true;
-    pc.x=m.x; pc.y=m.y;
-    if(!flyingGeneralFacing()) safe.push(m);
-    // hoàn tác
-    pc.x=back.x; pc.y=back.y;
-    if(target) target.dead=false;
-  }
-  return safe;
-}
-
-// ===== Khởi tạo =====
+// ======= khởi chạy =======
 drawBoard();
-drawPieces();
-setTurnUI();
+refresh();
