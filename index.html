@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Xiangqi Online (MVP)</title>
+  <link rel="stylesheet" href="/public/style.css" />
+</head>
+<body>
+  <header>
+    <h1>🎲 Cờ Tướng Online</h1>
+    <nav>
+      <button id="btn-login">Đăng nhập</button>
+      <button id="btn-register">Đăng ký</button>
+      <button id="btn-logout" style="display:none">Đăng xuất</button>
+    </nav>
+  </header>
+
+  <main>
+    <section id="auth"></section>
+
+    <section id="lobby">
+      <div class="panel">
+        <h2>Phòng chơi</h2>
+        <input id="match-id" placeholder="Mã trận" />
+        <button id="join">Vào trận</button>
+        <button id="start">Bắt đầu</button>
+      </div>
+
+      <div class="panel">
+        <h2>Nhóm & Giải đấu</h2>
+        <div>
+          <input id="group-name" placeholder="Tên nhóm" />
+          <button id="create-group">Tạo nhóm</button>
+        </div>
+        <div>
+          <input id="tour-name" placeholder="Tên giải" />
+          <input id="tour-group" placeholder="Group ID" />
+          <input id="tour-time" placeholder="Thời gian (giây)" />
+          <button id="create-tour">Tạo giải</button>
+        </div>
+        <div>
+          <input id="tour-id" placeholder="Tournament ID" />
+          <input id="player-id" placeholder="User ID" />
+          <button id="add-player">Thêm người chơi</button>
+          <button id="gen-pair">Ghép cặp</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Bảng xếp hạng</h2>
+        <table id="board"><thead><tr><th>Người chơi</th><th>Thắng</th><th>Hòa</th><th>Thua</th></tr></thead><tbody></tbody></table>
+      </div>
+    </section>
+
+    <section id="game" class="hidden">
+      <div id="top-bar">
+        <span id="role"></span>
+        <span>⏱️ Đỏ: <b id="redTime">--</b> • Đen: <b id="blackTime">--</b></span>
+      </div>
+      <div id="board"></div>
+      <div id="controls">
+        <input id="from" placeholder="từ (vd: e2)" maxlength="2" />
+        <input id="to" placeholder="đến (vd: e3)" maxlength="2" />
+        <button id="move">Đi quân</button>
+        <button id="claim-draw">Xin hòa</button>
+        <button id="resign">Xin thua</button>
+      </div>
+    </section>
+  </main>
+
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+  <script type="module" src="/public/board.js"></script>
+  <script type="module" src="/public/app.js"></script>
+</body>
+</html>

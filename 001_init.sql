@@ -1,0 +1,81 @@
+-- Users, groups, tournaments, matches, moves, ratings
+CREATE TABLE IF NOT EXISTS users (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  email TEXT UNIQUE NOT NULL,
+  password_hash TEXT NOT NULL,
+  display_name TEXT NOT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS groups (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT UNIQUE NOT NULL,
+  owner_id INTEGER NOT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY(owner_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS group_members (
+  group_id INTEGER NOT NULL,
+  user_id INTEGER NOT NULL,
+  role TEXT DEFAULT 'member',
+  PRIMARY KEY (group_id, user_id),
+  FOREIGN KEY(group_id) REFERENCES groups(id) ON DELETE CASCADE,
+  FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS tournaments (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  group_id INTEGER NOT NULL,
+  name TEXT NOT NULL,
+  time_initial_seconds INTEGER NOT NULL DEFAULT 600,
+  time_increment_seconds INTEGER NOT NULL DEFAULT 0,
+  format TEXT NOT NULL DEFAULT 'round_robin',
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  status TEXT NOT NULL DEFAULT 'draft',
+  FOREIGN KEY(group_id) REFERENCES groups(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS tournament_players (
+  tournament_id INTEGER NOT NULL,
+  user_id INTEGER NOT NULL,
+  PRIMARY KEY (tournament_id, user_id),
+  FOREIGN KEY(tournament_id) REFERENCES tournaments(id) ON DELETE CASCADE,
+  FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS matches (
+  id TEXT PRIMARY KEY,
+  tournament_id INTEGER,
+  red_id INTEGER NOT NULL,
+  black_id INTEGER NOT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  started_at DATETIME,
+  finished_at DATETIME,
+  status TEXT NOT NULL DEFAULT 'pending',
+  result TEXT,
+  red_time_left INTEGER,
+  black_time_left INTEGER,
+  FOREIGN KEY(tournament_id) REFERENCES tournaments(id) ON DELETE SET NULL,
+  FOREIGN KEY(red_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY(black_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS moves (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  match_id TEXT NOT NULL,
+  ply INTEGER NOT NULL,
+  from_sq TEXT NOT NULL,
+  to_sq TEXT NOT NULL,
+  san TEXT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY(match_id) REFERENCES matches(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS ratings (
+  user_id INTEGER PRIMARY KEY,
+  rating INTEGER NOT NULL DEFAULT 1500,
+  rd REAL NOT NULL DEFAULT 350,
+  vol REAL NOT NULL DEFAULT 0.06,
+  FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+);
