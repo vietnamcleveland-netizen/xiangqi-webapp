@@ -5,57 +5,19 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Xiangqi WebApp</title>
   <style>
-    body {
-      background-color: #f5f5f5;
-      font-family: Arial, sans-serif;
-      text-align: center;
-      margin: 0;
-      padding: 0;
+    body { background:#f5f5f5; font-family: Arial, sans-serif; text-align:center; margin:0 }
+    h1 { color:#b22222; margin-top:20px }
+    #board{
+      display:grid; grid-template-columns:repeat(9,60px); grid-template-rows:repeat(10,60px);
+      justify-content:center; background:#f4d9b1; border:2px solid #8b5a2b; box-shadow:0 0 10px rgba(0,0,0,.3);
+      margin:20px auto; width:540px; height:600px; position:relative;
     }
-    h1 {
-      color: #b22222;
-      margin-top: 20px;
+    .cell{ border:1px solid #8b5a2b; box-sizing:border-box; position:relative }
+    .piece{
+      position:absolute; width:50px; height:50px; border-radius:50%; border:2px solid; background:#fff;
+      display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:22px; cursor:pointer;
     }
-    #board {
-      display: grid;
-      grid-template-columns: repeat(9, 60px);
-      grid-template-rows: repeat(10, 60px);
-      justify-content: center;
-      background-color: #f4d9b1;
-      border: 2px solid #8b5a2b;
-      box-shadow: 0 0 10px rgba(0,0,0,0.3);
-      margin: 20px auto;
-      width: 540px;
-      height: 600px;
-      position: relative;
-    }
-    .cell {
-      border: 1px solid #8b5a2b;
-      box-sizing: border-box;
-      position: relative;
-    }
-    .piece {
-      position: absolute;
-      width: 50px;
-      height: 50px;
-      border-radius: 50%;
-      border: 2px solid;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: bold;
-      font-size: 22px;
-      background-color: #fff;
-      cursor: pointer;
-    }
-    .red {
-      color: red;
-      border-color: red;
-    }
-    .black {
-      color: black;
-      border-color: black;
-    }
+    .red{ color:red; border-color:red } .black{ color:black; border-color:black }
   </style>
 </head>
 <body>
@@ -64,51 +26,24 @@
 
   <script>
     const board = document.getElementById("board");
+    for (let i = 0; i < 90; i++) { const c=document.createElement("div"); c.className="cell"; board.appendChild(c); }
 
-    // Tạo 90 ô cờ (9x10)
-    for (let i = 0; i < 90; i++) {
-      const cell = document.createElement("div");
-      cell.classList.add("cell");
-      board.appendChild(cell);
+    function placePiece(txt, color, x, y){
+      const p=document.createElement("div");
+      p.className=`piece ${color}`;
+      p.style.left=`${x*60+5}px`; p.style.top=`${y*60+5}px`;
+      p.textContent=txt; board.appendChild(p);
     }
 
-    // Hàm đặt quân cờ
-    function placePiece(text, color, x, y) {
-      const piece = document.createElement("div");
-      piece.classList.add("piece", color);
-      piece.style.left = `${x * 60 + 5}px`;
-      piece.style.top = `${y * 60 + 5}px`;
-      piece.textContent = text;
-      board.appendChild(piece);
-    }
+    // Đen (trên)
+    ["車","馬","象","士","將","士","象","馬","車"].forEach((t,i)=>placePiece(t,"black",i,0));
+    placePiece("炮","black",1,2); placePiece("炮","black",7,2);
+    for(let i=0;i<9;i+=2) placePiece("卒","black",i,3);
 
-    // Quân đen
-    placePiece("車", "black", 0, 0);
-    placePiece("馬", "black", 1, 0);
-    placePiece("象", "black", 2, 0);
-    placePiece("士", "black", 3, 0);
-    placePiece("將", "black", 4, 0);
-    placePiece("士", "black", 5, 0);
-    placePiece("象", "black", 6, 0);
-    placePiece("馬", "black", 7, 0);
-    placePiece("車", "black", 8, 0);
-    placePiece("炮", "black", 1, 2);
-    placePiece("炮", "black", 7, 2);
-    for (let i = 0; i < 9; i += 2) placePiece("卒", "black", i, 3);
-
-    // Quân đỏ
-    placePiece("車", "red", 0, 9);
-    placePiece("馬", "red", 1, 9);
-    placePiece("相", "red", 2, 9);
-    placePiece("仕", "red", 3, 9);
-    placePiece("帥", "red", 4, 9);
-    placePiece("仕", "red", 5, 9);
-    placePiece("相", "red", 6, 9);
-    placePiece("馬", "red", 7, 9);
-    placePiece("車", "red", 8, 9);
-    placePiece("炮", "red", 1, 7);
-    placePiece("炮", "red", 7, 7);
-    for (let i = 0; i < 9; i += 2) placePiece("兵", "red", i, 6);
+    // Đỏ (dưới)
+    ["車","馬","相","仕","帥","仕","相","馬","車"].forEach((t,i)=>placePiece(t,"red",i,9));
+    placePiece("炮","red",1,7); placePiece("炮","red",7,7);
+    for(let i=0;i<9;i+=2) placePiece("兵","red",i,6);
   </script>
 </body>
 </html>
