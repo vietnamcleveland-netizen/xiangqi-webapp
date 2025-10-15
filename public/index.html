@@ -1,64 +1,48 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Chinese Chess (Xiangqi)</title>
-  <style>
-    :root {
-      --cell: 60px;
-      --board-w: calc(var(--cell) * 9);  /* 540 */
-      --board-h: calc(var(--cell) * 10); /* 600 */
-    }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { background:#f4f4f4; font-family: Arial, sans-serif; color:#222; text-align:center; }
-    h1 { color:#b22222; margin-top: 16px; }
-    #turn { margin:6px 0 12px; color:#666; font-size:14px; }
-
-    #board {
-      position: relative;
-      width: var(--board-w);
-      height: var(--board-h);
-      margin: 0 auto 40px;
-      background: #f3c78b;
-      border: 3px solid #6b3b16;
-      border-radius: 6px;
-      box-shadow: 0 4px 10px rgba(0,0,0,.1);
-      overflow: hidden;
-    }
-
-    /* Lưới/đồ hoạ */
-    svg { position:absolute; inset:0; width:100%; height:100%; z-index:1; pointer-events:none; }
-    line { stroke:#5e3416; stroke-width:2; }
-    rect#river { fill:#e4aa5f; }
-    text { fill:#5c3717; font-size:28px; font-weight:700; }
-
-    /* Quân cờ */
-    .piece{
-      position:absolute; width:50px; height:50px; border-radius:50%;
-      display:flex; align-items:center; justify-content:center;
-      font-weight:bold; font-size:22px; background:#fff; cursor:pointer;
-      z-index:5; user-select:none;
-      transform: translate(-50%, -50%); /* đặt tâm vào toạ độ giao điểm */
-    }
-    .red   { color:#d32f2f; border:3px solid #d32f2f; }
-    .black { color:#000;    border:3px solid #000; }
-
-    /* viền chọn */
-    .hl{ position:absolute; width:50px;height:50px; border:3px solid #ffd54f;
-         border-radius:8px; pointer-events:none; z-index:4; transform: translate(-50%,-50%);
-         box-shadow:0 0 8px rgba(0,0,0,.3) inset; }
-  </style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Chinese Chess (Xiangqi)</title>
+<style>
+  :root { --cell:60px; --w:540px; --h:600px; --ori:5px; }
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  body{ background:#f4f4f4; font-family:Arial,Helvetica,sans-serif; color:#222; text-align:center; }
+  h1{ color:#b22222; margin:16px 0 6px; }
+  #turn{ color:#666; margin-bottom:12px; font-size:14px; }
+  #board{
+    position:relative; width:var(--w); height:var(--h); margin:0 auto 40px;
+    background:#f3c78b; border:3px solid #6b3b16; border-radius:6px;
+    box-shadow:0 4px 10px rgba(0,0,0,.1); overflow:hidden;
+  }
+  svg{ position:absolute; inset:0; width:100%; height:100%; z-index:1; pointer-events:none; }
+  line{ stroke:#5e3416; stroke-width:2; }
+  rect#river{ fill:#e4aa5f; }
+  text{ fill:#5c3717; font-size:28px; font-weight:700; user-select:none; }
+  .piece{
+    position:absolute; width:50px; height:50px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    background:#fff; font-weight:bold; font-size:22px; cursor:pointer;
+    user-select:none; z-index:5; transform:translate(-50%,-50%);
+  }
+  .red{ color:#d32f2f; border:3px solid #d32f2f; }
+  .black{ color:#000; border:3px solid #000; }
+  .hl{
+    position:absolute; width:50px; height:50px; border:3px solid #ffd54f;
+    border-radius:8px; z-index:4; pointer-events:none; transform:translate(-50%,-50%);
+    box-shadow:0 0 8px rgba(0,0,0,.3) inset;
+  }
+</style>
 </head>
 <body>
   <h1>Chinese Chess (Xiangqi)</h1>
   <div id="turn">Red to move</div>
 
   <div id="board">
-    <svg viewBox="0 0 540 600">
-      <!-- viền -->
+    <!-- LƯỚI/SVG -->
+    <svg viewBox="0 0 540 600" preserveAspectRatio="none">
+      <!-- viền ngoài -->
       <rect x="5" y="5" width="530" height="590" fill="none" stroke="#5e3416" stroke-width="4"/>
-
       <!-- ngang -->
       <g>
         <line x1="5" y1="5"   x2="535" y2="5"/>
@@ -73,7 +57,6 @@
         <line x1="5" y1="545" x2="535" y2="545"/>
         <line x1="5" y1="595" x2="535" y2="595"/>
       </g>
-
       <!-- dọc (ngắt ở sông) -->
       <g>
         <line x1="5"   y1="5"   x2="5"   y2="595"/>
@@ -87,13 +70,11 @@
         <line x1="485" y1="5"   x2="485" y2="245"/><line x1="485" y1="305" x2="485" y2="595"/>
         <line x1="535" y1="5"   x2="535" y2="595"/>
       </g>
-
       <!-- sông -->
       <rect id="river" x="5" y="245" width="530" height="60"/>
       <text x="200" y="285">楚河</text>
       <text x="320" y="285">漢界</text>
-
-      <!-- Cung tướng: dùng clipPath để không bị “dư” -->
+      <!-- clipPath cho cung tướng -->
       <defs>
         <clipPath id="pal-top"><rect x="185" y="5" width="120" height="120"/></clipPath>
         <clipPath id="pal-bot"><rect x="185" y="475" width="120" height="120"/></clipPath>
@@ -109,6 +90,113 @@
     </svg>
   </div>
 
-  <script src="/app.js" defer></script>
+<script>
+(() => {
+  const CELL=60, ORI=5;
+  const board=document.getElementById('board');
+  const turnEl=document.getElementById('turn');
+
+  const toPx=(c,r)=>({x: ORI + c*CELL, y: ORI + r*CELL});
+  const posKey=(c,r)=>`${c},${r}`;
+
+  let turn='red', selected=null, hl=null;
+  const pieces=[], byId=new Map(), pos=new Map();
+
+  const add=(txt,color,c,r)=> {
+    const id=`${txt}_${color}_${c}_${r}_${Math.random().toString(36).slice(2,7)}`;
+    pieces.push({id,txt,color,c,r});
+  };
+
+  // đen (trên)
+  '车马象士将士象马车'.split('').forEach((t,i)=>add(t,'black',i,0));
+  add('炮','black',1,2); add('炮','black',7,2);
+  [0,2,4,6,8].forEach(c=>add('卒','black',c,3));
+  // đỏ (dưới)
+  '车马相仕帅仕相马车'.split('').forEach((t,i)=>add(t,'red',i,9));
+  add('炮','red',1,7); add('炮','red',7,7);
+  [0,2,4,6,8].forEach(c=>add('兵','red',c,6));
+
+  function updateTurn(){ turnEl.textContent=(turn==='red'?'Red':'Black')+' to move'; }
+
+  function mount(){
+    [...board.querySelectorAll('.piece,.hl')].forEach(n=>n.remove());
+    byId.clear(); pos.clear();
+
+    pieces.forEach(p=>{
+      const el=document.createElement('div');
+      el.className=`piece ${p.color}`;
+      el.textContent=p.txt;
+      const {x,y}=toPx(p.c,p.r);
+      el.style.left=`${x}px`; el.style.top=`${y}px`;
+      el.dataset.id=p.id;
+      el.addEventListener('click',onPiece);
+      board.appendChild(el);
+      byId.set(p.id,el);
+      pos.set(posKey(p.c,p.r),p.id);
+    });
+  }
+
+  function pieceAt(c,r){
+    const id=pos.get(posKey(c,r));
+    return id ? pieces.find(p=>p.id===id):null;
+  }
+
+  function select(p){
+    selected=p;
+    if(!hl){
+      hl=document.createElement('div');
+      hl.className='hl'; board.appendChild(hl);
+    }
+    const {x,y}=toPx(p.c,p.r);
+    hl.style.left=`${x}px`; hl.style.top=`${y}px`;
+  }
+  function clearSel(){ selected=null; if(hl){hl.remove(); hl=null;} }
+
+  function onPiece(e){
+    const p=pieces.find(x=>x.id===e.currentTarget.dataset.id);
+    if(!p) return;
+
+    if(selected && selected.id!==p.id){
+      if(selected.color!==p.color){ moveTo(selected,p.c,p.r,true); }
+      else select(p);
+      return;
+    }
+    if(p.color!==turn) return;
+    select(p);
+  }
+
+  board.addEventListener('click', (e)=>{
+    if(e.target.classList.contains('piece')) return;
+    if(!selected) return;
+    const rect=board.getBoundingClientRect();
+    const px=e.clientX-rect.left, py=e.clientY-rect.top;
+    const c=Math.max(0,Math.min(8, Math.round((px-ORI)/CELL)));
+    const r=Math.max(0,Math.min(9, Math.round((py-ORI)/CELL)));
+    const t=pieceAt(c,r);
+    if(t && t.color===selected.color) return;
+    moveTo(selected,c,r,!!t);
+  });
+
+  function moveTo(p,c,r,capture=false){
+    pos.delete(posKey(p.c,p.r));
+    if(capture){
+      const v=pieceAt(c,r);
+      if(v){
+        const idx=pieces.findIndex(x=>x.id===v.id);
+        if(idx>=0) pieces.splice(idx,1);
+        const vEl=byId.get(v.id); if(vEl) vEl.remove();
+        byId.delete(v.id); pos.delete(posKey(c,r));
+      }
+    }
+    p.c=c; p.r=r; pos.set(posKey(c,r),p.id);
+    const el=byId.get(p.id); const {x,y}=toPx(c,r);
+    el.style.left=`${x}px`; el.style.top=`${y}px`;
+    turn=(turn==='red')?'black':'red';
+    updateTurn(); clearSel();
+  }
+
+  updateTurn(); mount();
+})();
+</script>
 </body>
 </html>
