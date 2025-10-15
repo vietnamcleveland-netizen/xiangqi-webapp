@@ -10,33 +10,28 @@ require('dotenv').config();
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server);
+const io = new Server(server, { cors: { origin: '*' } });
 
 const PORT = process.env.PORT || 8080;
 
-// middleware
 app.use(helmet());
 app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
 app.use(cookieParser());
-app.use(express.static(path.join(__dirname, 'public')));
 
-// rate limit
 const limiter = rateLimit({ windowMs: 60 * 1000, limit: 300 });
 app.use(limiter);
 
-// routes
+app.use(express.static(path.join(__dirname, 'public')));
+
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// socket.io
 io.on('connection', (socket) => {
-  console.log('A user connected');
-  socket.on('disconnect', () => console.log('User disconnected'));
+  console.log('User connected:', socket.id);
+  socket.on('ping', (msg) => socket.emit('pong', msg));
+  socket.on('disconnect', () => console.log('User disconnected:', socket.id));
 });
 
-// start server
-server.listen(PORT, () => {
-  console.log(`server running on port ${PORT}`);
-});
+server.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));

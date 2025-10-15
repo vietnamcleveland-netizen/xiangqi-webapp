@@ -1,44 +1,31 @@
-import fs from 'fs';
-import path from 'path';
-import sqlite3 from 'sqlite3';
-import { fileURLToPath } from 'url';
+const fs = require('fs');
+const path = require('path');
+const sqlite3 = require('sqlite3').verbose();
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const DB_PATH = path.join(__dirname, 'xiangqi.sqlite');
+const DB_FILE = process.env.DB_FILE || path.join(__dirname, 'data.sqlite');
+const MIGRATIONS_DIR = path.join(__dirname, 'migrations');
 
-export function getDB() {
-  sqlite3.verbose();
-  return new sqlite3.Database(DB_PATH);
-}
-
-export function run(db, sql, params=[]) {
-  return new Promise((resolve, reject) => {
-    db.run(sql, params, function(err){
-      if (err) reject(err); else resolve(this);
-    });
+function runMigrations() {
+  const files = fs.readdirSync(MIGRATIONS_DIR).filter(f => f.endsWith('.sql')).sort();
+  if (files.length === 0) {
+    console.log('⚠️ No migration files found.');
+    return;
+  }
+  const db = new sqlite3.Database(DB_FILE);
+  db.serialize(() => {
+    for (const file of files) {
+      const sql = fs.readFileSync(path.join(MIGRATIONS_DIR, file), 'utf8');
+      console.log('Running migration:', file);
+      db.exec(sql);
+    }
   });
+  db.close(() => console.log('✅ Migration completed.'));
 }
 
-export function all(db, sql, params=[]) {
-  return new Promise((resolve, reject) => {
-    db.all(sql, params, function(err, rows){
-      if (err) reject(err); else resolve(rows);
-    });
-  });
+if (require.main === module) {
+  const cmd = process.argv[2];
+  if (cmd === 'migrate') runMigrations();
+  else console.log('Usage: node db.js migrate');
 }
 
-export async function migrate() {
-  const db = getDB();
-  const ddl = fs.readFileSync(path.join(__dirname, 'migrations', '001_init.sql'), 'utf8');
-  await run(db, 'PRAGMA foreign_keys = ON;');
-  await run(db, 'BEGIN;');
-  await run(db, ddl);
-  await run(db, 'COMMIT;');
-  db.close();
-  console.log('✅ Migrated');
-}
-
-if (process.argv[2] === 'migrate') {
-  migrate().catch(e=>{console.error(e); process.exit(1);});
-}
+module.exports = { runMigrations };
