@@ -4,8 +4,8 @@
   "private": true,
   "type": "commonjs",
   "scripts": {
-    "start": "node server.js",
-    "dev": "NODE_ENV=development nodemon server.js",
+    "start": "node server.cjs",
+    "dev": "NODE_ENV=development nodemon server.cjs",
     "migrate": "node db.js migrate"
   },
   "dependencies": {
