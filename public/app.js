@@ -1,105 +1,131 @@
- board = document.getElementById("board");
+// Xiangqi: select–move–capture (no full rules yet)
+// Works with a 9x10 board drawn inside #board (position:relative; 540x600)
+
+const board = document.getElementById("board");
 const turnDisplay = document.getElementById("turn");
 
+const CELL = 60;          // mỗi ô 60px
+const PAD  = 5;           // viền trong cho quân
 let currentTurn = "red";
 let selected = null;
-const gridSize = 60;
 
-// 9 x 10 board
-const pieces = [];
-const setup = {
-  red: [
-    ["車","馬","相","仕","帥","仕","相","馬","車", 9, 0],
-    ["炮",1,7], ["炮",7,7],
-    ["兵",0,6],["兵",2,6],["兵",4,6],["兵",6,6],["兵",8,6]
-  ],
-  black: [
-    ["車","馬","象","士","將","士","象","馬","車", 0, 0],
-    ["砲",1,2], ["砲",7,2],
-    ["卒",0,3],["卒",2,3],["卒",4,3],["卒",6,3],["卒",8,3]
-  ]
-};
+const pieces = []; // mảng các <div class="piece">
 
-// create div pieces
+function setTurnText() {
+  turnDisplay.textContent = currentTurn === "red" ? "Red to move" : "Black to move";
+}
+setTurnText();
+
+// ===== Khởi tạo quân =====
 function createPiece(text, color, x, y) {
   const p = document.createElement("div");
   p.className = `piece ${color}`;
   p.textContent = text;
-  p.style.left = x * gridSize + 5 + "px";
-  p.style.top = y * gridSize + 5 + "px";
-  p.dataset.x = x;
-  p.dataset.y = y;
+  positionPiece(p, x, y);
+
+  p.dataset.x = String(x);
+  p.dataset.y = String(y);
   p.dataset.color = color;
   p.dataset.name = text;
-  p.addEventListener("click", () => selectPiece(p));
+
+  // chọn quân – cực kỳ quan trọng: chặn bubbling
+  p.addEventListener("click", (e) => {
+    e.stopPropagation();
+    // chỉ được chọn đúng lượt
+    if (p.dataset.color !== currentTurn) return;
+
+    if (selected === p) {
+      hideHL();
+      selected = null;
+      return;
+    }
+    selected = p;
+    showHLAt(x, y);
+  });
+
   board.appendChild(p);
   pieces.push(p);
 }
 
-function initPieces() {
-  for (let i=0; i<9; i++) {
-    createPiece(setup.red[0][i], "red", i, 9);
-    createPiece(setup.black[0][i], "black", i, 0);
-  }
-  for (let i=1;i<setup.red.length;i++){
-    createPiece(setup.red[i][0], "red", setup.red[i][1], setup.red[i][2]);
-  }
-  for (let i=1;i<setup.black.length;i++){
-    createPiece(setup.black[i][0], "black", setup.black[i][1], setup.black[i][2]);
-  }
+function positionPiece(p, x, y) {
+  p.style.left = (x * CELL + PAD) + "px";
+  p.style.top  = (y * CELL + PAD) + "px";
 }
-initPieces();
 
-// Highlight possible moves (basic)
+// Dàn quân tiêu chuẩn
+(function initPieces() {
+  const r0 = ["車","馬","相","仕","帥","仕","相","馬","車"];
+  const b0 = ["車","馬","象","士","將","士","象","馬","車"];
+
+  for (let i = 0; i < 9; i++) {
+    createPiece(r0[i], "red",   i, 9);
+    createPiece(b0[i], "black", i, 0);
+  }
+  // red
+  createPiece("炮","red",1,7); createPiece("炮","red",7,7);
+  for (let i = 0; i < 9; i += 2) createPiece("兵","red",i,6);
+  // black
+  createPiece("砲","black",1,2); createPiece("砲","black",7,2);
+  for (let i = 0; i < 9; i += 2) createPiece("卒","black",i,3);
+})();
+
+// ===== Highlight khung chọn =====
 const hl = document.createElement("div");
 hl.className = "hl";
 hl.style.display = "none";
 board.appendChild(hl);
 
-function selectPiece(p) {
-  if (p.dataset.color !== currentTurn) return;
-  if (selected === p) {
-    selected = null;
-    hl.style.display = "none";
-    return;
-  }
-  selected = p;
+function showHLAt(x, y) {
   hl.style.display = "block";
-  hl.style.left = p.style.left;
-  hl.style.top = p.style.top;
-  hl.style.width = "50px";
-  hl.style.height = "50px";
+  hl.style.left = (x * CELL + PAD) + "px";
+  hl.style.top  = (y * CELL + PAD) + "px";
 }
+function hideHL() { hl.style.display = "none"; }
 
-// click to move
-board.addEventListener("click", e => {
+// =====-helpers=====
+function pieceAt(x, y) {
+  return pieces.find(pp => +pp.dataset.x === x && +pp.dataset.y === y);
+}
+function inside(x, y) { return x >= 0 && x <= 8 && y >= 0 && y <= 9; }
+
+// ===== Click trên bàn (đi quân) =====
+board.addEventListener("click", (e) => {
   if (!selected) return;
 
-  // clicked position
+  // chuyển tọa độ pixel -> ô
   const rect = board.getBoundingClientRect();
-  const x = Math.round((e.clientX - rect.left - 30) / gridSize);
-  const y = Math.round((e.clientY - rect.top - 30) / gridSize);
-  if (x < 0 || x > 8 || y < 0 || y > 9) return;
+  const relX = e.clientX - rect.left - PAD; // trừ PAD vì quân cũng lệch PAD
+  const relY = e.clientY - rect.top  - PAD;
 
-  // check if another piece there
-  const target = pieces.find(pp => parseInt(pp.dataset.x) === x && parseInt(pp.dataset.y) === y);
+  const x = Math.round(relX / CELL);
+  const y = Math.round(relY / CELL);
+  if (!inside(x, y)) return;
+
+  const sx = +selected.dataset.x;
+  const sy = +selected.dataset.y;
+
+  // chặn đứng nếu click lại chính ô đang đứng
+  if (x === sx && y === sy) return;
+
+  // Nếu có quân ở đích
+  const target = pieceAt(x, y);
   if (target) {
-    if (target.dataset.color === selected.dataset.color) return;
-    // capture
+    // không được ăn quân cùng màu
+    if (target.dataset.color === selected.dataset.color) { return; }
+    // ăn quân đối phương
     board.removeChild(target);
     const idx = pieces.indexOf(target);
-    if (idx >= 0) pieces.splice(idx,1);
+    if (idx >= 0) pieces.splice(idx, 1);
   }
 
-  // move piece
-  selected.dataset.x = x;
-  selected.dataset.y = y;
-  selected.style.left = x * gridSize + 5 + "px";
-  selected.style.top = y * gridSize + 5 + "px";
-  hl.style.display = "none";
-  selected = null;
+  // di chuyển
+  selected.dataset.x = String(x);
+  selected.dataset.y = String(y);
+  positionPiece(selected, x, y);
 
-  // switch turn
-  currentTurn = currentTurn === "red" ? "black" : "red";
-  turnDisplay.textContent = currentTurn === "red" ? "Red to move" : "Black to move";
+  // bỏ highlight & đổi lượt
+  hideHL();
+  selected = null;
+  currentTurn = (currentTurn === "red") ? "black" : "red";
+  setTurnText();
 });
