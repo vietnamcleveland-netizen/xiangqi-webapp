@@ -5,97 +5,65 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Chinese Chess (Xiangqi)</title>
   <style>
-    :root{
-      --board-w: 540px;  /* 9 cột * 60px */
-      --board-h: 600px;  /* 10 hàng * 60px */
+    :root {
       --cell: 60px;
-      --pad: 5px;        /* khớp với PAD trong app.js */
+      --pad: 5px;
+      --board-w: calc(var(--cell) * 9);
+      --board-h: calc(var(--cell) * 10);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #f4f4f4;
+      font-family: Arial, sans-serif;
+      color: #222;
+      text-align: center;
+    }
+    h1 { color: #b22222; margin-top: 16px; }
+    #turn { margin: 6px 0 12px; color: #666; font-size: 14px; }
+
+    #board {
+      position: relative;
+      width: var(--board-w);
+      height: var(--board-h);
+      margin: 0 auto 40px;
+      background: #f3c78b;
+      border: 3px solid #6b3b16;
+      border-radius: 6px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+      overflow: hidden;
     }
 
-    *{box-sizing:border-box}
-    body{
-      margin:0;
-      font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Noto Sans", "Liberation Sans", "Apple Color Emoji","Segoe UI Emoji","Segoe UI Symbol";
-      background:#f5f5f5;
-      color:#222;
-    }
-    h1{
-      text-align:center;
-      margin:16px 0 6px;
-      color:#b22222;
-    }
-    #turn{
-      text-align:center;
-      margin-bottom:12px;
-      font-size:14px;
-      color:#7a7a7a;
-    }
-    /* vùng bàn cờ */
-    #board{
-      position:relative;
-      width:var(--board-w);
-      height:var(--board-h);
-      margin:0 auto 40px;
-      background:#e9b56f;            /* nền gỗ */
-      border:4px solid #8a4d1a;      /* viền đậm */
-      border-radius:6px;
-      box-shadow:0 10px 18px rgba(0,0,0,.08), inset 0 0 0 2px rgba(0,0,0,.06);
-      overflow:hidden;
-    }
+    svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; }
+    line { stroke: #5e3416; stroke-width: 2; }
+    rect#river { fill: #e4aa5f; }
+    text { fill: #5c3717; font-size: 28px; font-weight: 700; }
 
-    /* SVG nền lưới */
-    #grid line{
-      stroke:#7a4f28;
-      stroke-width:2;
+    .piece {
+      position: absolute;
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      font-size: 22px;
+      background: #fff;
+      cursor: pointer;
+      z-index: 5;
+      user-select: none;
     }
-    #grid .border{
-      fill:none;
-      stroke:#7a4f28;
-      stroke-width:4;
-    }
-    #river{
-      fill:#e1a55e;
-    }
-    #riverText{
-      font-size:28px;
-      font-weight:700;
-      fill:#5c3717;
-      font-family: "Noto Serif SC", "PMingLiU", "MingLiU", "SimSun", serif;
-    }
+    .red   { color: #d32f2f; border: 3px solid #d32f2f; }
+    .black { color: #000;    border: 3px solid #000; }
 
-    /* quân cờ */
-    .piece{
-      position:absolute;
-      width:50px; height:50px;       /* nhỏ hơn 60px để lộ lưới */
-      border-radius:50%;
-      display:flex; align-items:center; justify-content:center;
-      font-size:22px; font-weight:700;
-      background:#fff;
-      user-select:none;
-      cursor:pointer;
-      box-shadow:0 1px 2px rgba(0,0,0,.15);
-      z-index:5;
-    }
-    .piece.red{
-      color:#e53935;
-      border:3px solid #e53935;
-      background:#fff;
-    }
-    .piece.black{
-      color:#111; 
-      border:3px solid #111;
-      background:#fff;
-    }
-
-    /* khung highlight khi chọn quân */
-    .hl{
-      position:absolute;
-      width:50px; height:50px;
-      border:3px solid #ffd54f;
-      border-radius:8px;
-      pointer-events:none;
-      box-shadow:0 0 8px rgba(0,0,0,.25) inset;
-      z-index:4;
+    .hl {
+      position: absolute;
+      width: 50px; height: 50px;
+      border: 3px solid #ffd54f;
+      border-radius: 8px;
+      pointer-events: none;
+      z-index: 4;
+      box-shadow: 0 0 8px rgba(0,0,0,0.3) inset;
     }
   </style>
 </head>
@@ -103,80 +71,62 @@
   <h1>Chinese Chess (Xiangqi)</h1>
   <div id="turn">Red to move</div>
 
-  <div id="board" aria-label="Xiangqi board">
-    <!-- SVG nền bàn cờ 9x10, ô = 60px, lệch biên 5px để khớp PAD -->
-    <svg id="bg" width="540" height="600" viewBox="0 0 540 600" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-      <!-- khung ngoài -->
-      <rect x="5" y="5" width="530" height="590" class="border"/>
+  <div id="board">
+    <svg viewBox="0 0 540 600">
+      <!-- Khung ngoài -->
+      <rect x="5" y="5" width="530" height="590" fill="none" stroke="#5e3416" stroke-width="4"/>
 
-      <!-- lưới ngang (10 hàng) -->
-      <g id="grid">
-        <!-- ngang -->
-        <g>
-          <!-- y = 5 + j*60 -->
-          <line x1="5"   y1="5"   x2="535" y2="5"   />
-          <line x1="5"   y1="65"  x2="535" y2="65"  />
-          <line x1="5"   y1="125" x2="535" y2="125" />
-          <line x1="5"   y1="185" x2="535" y2="185" />
-          <line x1="5"   y1="245" x2="535" y2="245" />
-          <line x1="5"   y1="305" x2="535" y2="305" />
-          <line x1="5"   y1="365" x2="535" y2="365" />
-          <line x1="5"   y1="425" x2="535" y2="425" />
-          <line x1="5"   y1="485" x2="535" y2="485" />
-          <line x1="5"   y1="545" x2="535" y2="545" />
-          <line x1="5"   y1="595" x2="535" y2="595" />
-        </g>
-
-        <!-- dọc: 9 cột (ngắt ở sông Chu–Hán) -->
-        <g>
-          <!-- x = 5 + i*60 -->
-          <!-- cột 0 -->
-          <line x1="5"   y1="5"   x2="5"   y2="245"/>
-          <line x1="5"   y1="305" x2="5"   y2="595"/>
-          <!-- cột 1 -->
-          <line x1="65"  y1="5"   x2="65"  y2="245"/>
-          <line x1="65"  y1="305" x2="65"  y2="595"/>
-          <!-- cột 2 -->
-          <line x1="125" y1="5"   x2="125" y2="245"/>
-          <line x1="125" y1="305" x2="125" y2="595"/>
-          <!-- cột 3 -->
-          <line x1="185" y1="5"   x2="185" y2="245"/>
-          <line x1="185" y1="305" x2="185" y2="595"/>
-          <!-- cột 4 -->
-          <line x1="245" y1="5"   x2="245" y2="245"/>
-          <line x1="245" y1="305" x2="245" y2="595"/>
-          <!-- cột 5 -->
-          <line x1="305" y1="5"   x2="305" y2="245"/>
-          <line x1="305" y1="305" x2="305" y2="595"/>
-          <!-- cột 6 -->
-          <line x1="365" y1="5"   x2="365" y2="245"/>
-          <line x1="365" y1="305" x2="365" y2="595"/>
-          <!-- cột 7 -->
-          <line x1="425" y1="5"   x2="425" y2="245"/>
-          <line x1="425" y1="305" x2="425" y2="595"/>
-          <!-- cột 8 -->
-          <line x1="485" y1="5"   x2="485" y2="245"/>
-          <line x1="485" y1="305" x2="485" y2="595"/>
-        </g>
-
-        <!-- sông Chu–Hán -->
-        <rect id="river" x="5" y="245" width="530" height="60"/>
-        <g id="riverText">
-          <text x="210" y="285">楚河</text>
-          <text x="320" y="285">漢界</text>
-        </g>
-
-        <!-- Đường chéo cung (trên) -->
-        <line x1="185" y1="5"   x2="305" y2="125"/>
-        <line x1="305" y1="5"   x2="185" y2="125"/>
-        <!-- Đường chéo cung (dưới) -->
-        <line x1="185" y1="475" x2="305" y2="595"/>
-        <line x1="305" y1="475" x2="185" y2="595"/>
+      <!-- Đường ngang -->
+      <g>
+        <line x1="5" y1="5" x2="535" y2="5"/>
+        <line x1="5" y1="65" x2="535" y2="65"/>
+        <line x1="5" y1="125" x2="535" y2="125"/>
+        <line x1="5" y1="185" x2="535" y2="185"/>
+        <line x1="5" y1="245" x2="535" y2="245"/>
+        <line x1="5" y1="305" x2="535" y2="305"/>
+        <line x1="5" y1="365" x2="535" y2="365"/>
+        <line x1="5" y1="425" x2="535" y2="425"/>
+        <line x1="5" y1="485" x2="535" y2="485"/>
+        <line x1="5" y1="545" x2="535" y2="545"/>
+        <line x1="5" y1="595" x2="535" y2="595"/>
       </g>
+
+      <!-- Đường dọc -->
+      <g>
+        <!-- cột -->
+        <line x1="5" y1="5" x2="5" y2="595"/>
+        <line x1="65" y1="5" x2="65" y2="245"/>
+        <line x1="65" y1="305" x2="65" y2="595"/>
+        <line x1="125" y1="5" x2="125" y2="245"/>
+        <line x1="125" y1="305" x2="125" y2="595"/>
+        <line x1="185" y1="5" x2="185" y2="245"/>
+        <line x1="185" y1="305" x2="185" y2="595"/>
+        <line x1="245" y1="5" x2="245" y2="245"/>
+        <line x1="245" y1="305" x2="245" y2="595"/>
+        <line x1="305" y1="5" x2="305" y2="245"/>
+        <line x1="305" y1="305" x2="305" y2="595"/>
+        <line x1="365" y1="5" x2="365" y2="245"/>
+        <line x1="365" y1="305" x2="365" y2="595"/>
+        <line x1="425" y1="5" x2="425" y2="245"/>
+        <line x1="425" y1="305" x2="425" y2="595"/>
+        <line x1="485" y1="5" x2="485" y2="245"/>
+        <line x1="485" y1="305" x2="485" y2="595"/>
+        <line x1="535" y1="5" x2="535" y2="595"/>
+      </g>
+
+      <!-- Sông Chu–Hán -->
+      <rect id="river" x="5" y="245" width="530" height="60"/>
+      <text x="200" y="285">楚河</text>
+      <text x="320" y="285">漢界</text>
+
+      <!-- Đường chéo cung -->
+      <line x1="185" y1="5"   x2="305" y2="125"/>
+      <line x1="305" y1="5"   x2="185" y2="125"/>
+      <line x1="185" y1="475" x2="305" y2="595"/>
+      <line x1="305" y1="475" x2="185" y2="595"/>
     </svg>
   </div>
 
-  <!-- Nạp logic: nhớ đặt trong public/ (đường dẫn /app.js vì đã static 'public') -->
   <script src="/app.js" defer></script>
 </body>
 </html>
