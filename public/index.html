@@ -5,91 +5,43 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Xiangqi WebApp</title>
   <style>
-    body {
-      background: #f5f5f5;
-      font-family: Arial, sans-serif;
-      text-align: center;
-      margin: 0;
-    }
-    h1 {
-      color: #b22222;
-      margin-top: 20px;
-    }
+    body { background:#f5f5f5; font-family:Arial, sans-serif; text-align:center; margin:0; }
+    h1 { color:#b22222; margin-top:20px; }
     #board {
       position: relative;
       margin: 20px auto;
-      width: 540px;
-      height: 600px;
+      width: 540px;   /* 9 cột * 60px */
+      height: 600px;  /* 10 hàng * 60px */
       background: #f4d9b1;
-      box-shadow: 0 10px 10px rgba(0, 0, 0, 0.2);
+      box-shadow: 0 10px 10px rgba(0,0,0,.2);
       border: 2px solid #b58a2b;
     }
     .cell {
       position: absolute;
       width: 60px;
       height: 60px;
-      border: 1px solid rgba(0, 0, 0, 0.2);
+      border: 1px solid rgba(0,0,0,.2);
       box-sizing: border-box;
     }
     .piece {
       position: absolute;
-      width: 50px;
-      height: 50px;
+      width: 50px; height: 50px;
       border-radius: 50%;
       border: 2px solid #000;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: bold;
-      font-size: 22px;
       background: #fff;
-      cursor: pointer;
+      display:flex; align-items:center; justify-content:center;
+      font-weight:700; font-size:22px;
+      cursor:pointer;
     }
-    .red { color: red; border-color: red; }
-    .black { color: black; border-color: black; }
+    .red { color:red; border-color:red; }
+    .black { color:black; border-color:black; }
   </style>
 </head>
 <body>
   <h1>Chinese Chess (Xiangqi)</h1>
   <div id="board"></div>
 
-  <script>
-    const board = document.getElementById("board");
-
-    // Vẽ lưới 9x10
-    for (let y = 0; y < 10; y++) {
-      for (let x = 0; x < 9; x++) {
-        const cell = document.createElement("div");
-        cell.className = "cell";
-        cell.style.left = `${x * 60}px`;
-        cell.style.top = `${y * 60}px`;
-        board.appendChild(cell);
-      }
-    }
-
-    // Hàm đặt quân
-    function placePiece(text, color, x, y) {
-      const p = document.createElement("div");
-      p.className = `piece ${color}`;
-      p.textContent = text;
-      p.style.left = `${x * 60 + 5}px`;
-      p.style.top = `${y * 60 + 5}px`;
-      board.appendChild(p);
-    }
-
-    // Bố trí quân đen (trên)
-    const blackPieces = ["車","馬","象","士","將","士","象","馬","車"];
-    blackPieces.forEach((t, i) => placePiece(t, "black", i, 0));
-    placePiece("砲", "black", 1, 2);
-    placePiece("砲", "black", 7, 2);
-    for (let i = 0; i < 9; i += 2) placePiece("卒", "black", i, 3);
-
-    // Bố trí quân đỏ (dưới)
-    const redPieces = ["車","馬","相","仕","帥","仕","相","馬","車"];
-    redPieces.forEach((t, i) => placePiece(t, "red", i, 9));
-    placePiece("炮", "red", 1, 7);
-    placePiece("炮", "red", 7, 7);
-    for (let i = 0; i < 9; i += 2) placePiece("兵", "red", i, 6);
-  </script>
+  <!-- Nạp JS từ file riêng để tránh bị chặn inline script -->
+  <script defer src="/app.js"></script>
 </body>
 </html>
