@@ -1,131 +1,158 @@
-// Xiangqi: select–move–capture (no full rules yet)
-// Works with a 9x10 board drawn inside #board (position:relative; 540x600)
+(() => {
+  const CELL = 60;          // 60px/ô
+  const ORI  = 5;           // biên trái/trên của lưới (trùng SVG)
+  const boardEl = document.getElementById('board');
+  const turnEl  = document.getElementById('turn');
 
-const board = document.getElementById("board");
-const turnDisplay = document.getElementById("turn");
+  const toPx = (c, r) => ({ x: ORI + c * CELL, y: ORI + r * CELL });
 
-const CELL = 60;          // mỗi ô 60px
-const PAD  = 5;           // viền trong cho quân
-let currentTurn = "red";
-let selected = null;
+  // trạng thái
+  let turn = 'red';
+  let selected = null;         // {id, c, r, color, type}
+  let hlEl = null;
 
-const pieces = []; // mảng các <div class="piece">
+  // mảng quân khởi tạo (chuẩn theo ảnh)
+  const pieces = [];
 
-function setTurnText() {
-  turnDisplay.textContent = currentTurn === "red" ? "Red to move" : "Black to move";
-}
-setTurnText();
+  const add = (type, color, c, r, txt) => {
+    const id = `${type}_${color}_${c}_${r}_${Math.random().toString(36).slice(2,7)}`;
+    pieces.push({ id, type, color, c, r, txt });
+  };
 
-// ===== Khởi tạo quân =====
-function createPiece(text, color, x, y) {
-  const p = document.createElement("div");
-  p.className = `piece ${color}`;
-  p.textContent = text;
-  positionPiece(p, x, y);
+  // --- đen (trên)
+  '车马象士将士象马车'.split('').forEach((t,i)=>add('top', 'black', i, 0, t));
+  add('cannon','black',1,2,'炮'); add('cannon','black',7,2,'炮');
+  [0,2,4,6,8].forEach(c=>add('sold','black',c,3,'卒'));
 
-  p.dataset.x = String(x);
-  p.dataset.y = String(y);
-  p.dataset.color = color;
-  p.dataset.name = text;
+  // --- đỏ (dưới)
+  '车马相仕帅仕相马车'.split('').forEach((t,i)=>add('bot','red', i, 9, t));
+  add('cannon','red',1,7,'炮'); add('cannon','red',7,7,'炮');
+  [0,2,4,6,8].forEach(c=>add('sold','red',c,6,'兵'));
 
-  // chọn quân – cực kỳ quan trọng: chặn bubbling
-  p.addEventListener("click", (e) => {
-    e.stopPropagation();
-    // chỉ được chọn đúng lượt
-    if (p.dataset.color !== currentTurn) return;
+  // hiển thị turn
+  const updateTurn = () => { turnEl.textContent = (turn === 'red' ? 'Red' : 'Black') + ' to move'; };
 
-    if (selected === p) {
-      hideHL();
-      selected = null;
+  // render lên DOM
+  const byId = new Map(); // id -> element
+  const posMap = new Map(); // key "c,r" -> piece id
+
+  const posKey = (c,r)=>`${c},${r}`;
+
+  const mountAll = () => {
+    // clear
+    [...boardEl.querySelectorAll('.piece, .hl')].forEach(n=>n.remove());
+    byId.clear(); posMap.clear();
+
+    pieces.forEach(p=>{
+      const el = document.createElement('div');
+      el.className = `piece ${p.color}`;
+      el.textContent = p.txt;
+      const {x,y} = toPx(p.c,p.r);
+      el.style.left = `${x}px`;
+      el.style.top  = `${y}px`;
+      el.dataset.id = p.id;
+      el.addEventListener('click', onPieceClick);
+      boardEl.appendChild(el);
+      byId.set(p.id, el);
+      posMap.set(posKey(p.c,p.r), p.id);
+    });
+  };
+
+  const pieceAt = (c,r)=> {
+    const id = posMap.get(posKey(c,r));
+    return id ? pieces.find(p=>p.id===id) : null;
+  };
+
+  // chọn quân
+  const onPieceClick = (e) => {
+    const id = e.currentTarget.dataset.id;
+    const p  = pieces.find(x=>x.id===id);
+    if (!p) return;
+
+    // nếu đang chọn và click vào đối phương -> cố gắng ăn
+    if (selected && selected.id !== p.id) {
+      if (selected.color !== p.color) {
+        // ăn: di chuyển selected tới vị trí p, xoá p
+        moveTo(selected, p.c, p.r, true);
+      } else {
+        // đổi chọn
+        select(p);
+      }
       return;
     }
+
+    // nếu chưa có hoặc chính nó => chọn nó (đúng lượt)
+    if (p.color !== turn) return;
+    select(p);
+  };
+
+  const select = (p) => {
     selected = p;
-    showHLAt(x, y);
+    if (!hlEl) {
+      hlEl = document.createElement('div');
+      hlEl.className = 'hl';
+      boardEl.appendChild(hlEl);
+    }
+    const {x,y}=toPx(p.c,p.r);
+    hlEl.style.left=`${x}px`; hlEl.style.top=`${y}px`;
+  };
+
+  const clearSelect = () => { selected=null; if (hlEl) { hlEl.remove(); hlEl=null; } };
+
+  // click nền để đi quân đến giao điểm gần nhất
+  boardEl.addEventListener('click', (e)=>{
+    // nếu click trúng quân thì handler ở quân đã chạy, ta bỏ qua ở đây
+    if (e.target.classList.contains('piece')) return;
+    if (!selected) return;
+
+    // lấy toạ độ chuột so với board
+    const rect = boardEl.getBoundingClientRect();
+    const px = e.clientX - rect.left;
+    const py = e.clientY - rect.top;
+
+    // làm tròn về giao điểm gần nhất (ORI + n*CELL)
+    const c = Math.max(0, Math.min(8, Math.round((px - ORI)/CELL)));
+    const r = Math.max(0, Math.min(9, Math.round((py - ORI)/CELL)));
+
+    // nếu có quân cùng màu -> không đi
+    const target = pieceAt(c,r);
+    if (target && target.color === selected.color) return;
+
+    moveTo(selected, c, r, !!target);
   });
 
-  board.appendChild(p);
-  pieces.push(p);
-}
+  // di chuyển / ăn
+  const moveTo = (p, c, r, capture=false) => {
+    // xoá pos cũ
+    posMap.delete(posKey(p.c,p.r));
 
-function positionPiece(p, x, y) {
-  p.style.left = (x * CELL + PAD) + "px";
-  p.style.top  = (y * CELL + PAD) + "px";
-}
+    // nếu ăn: xoá quân bị ăn
+    if (capture) {
+      const victim = pieceAt(c,r);
+      if (victim) {
+        const idx = pieces.findIndex(x=>x.id===victim.id);
+        if (idx>=0) pieces.splice(idx,1);
+        const vEl = byId.get(victim.id);
+        if (vEl) vEl.remove();
+        byId.delete(victim.id);
+        posMap.delete(posKey(c,r));
+      }
+    }
 
-// Dàn quân tiêu chuẩn
-(function initPieces() {
-  const r0 = ["車","馬","相","仕","帥","仕","相","馬","車"];
-  const b0 = ["車","馬","象","士","將","士","象","馬","車"];
+    // cập nhật quân
+    p.c = c; p.r = r;
+    posMap.set(posKey(c,r), p.id);
+    const el = byId.get(p.id);
+    const {x,y} = toPx(c,r);
+    el.style.left = `${x}px`; el.style.top = `${y}px`;
 
-  for (let i = 0; i < 9; i++) {
-    createPiece(r0[i], "red",   i, 9);
-    createPiece(b0[i], "black", i, 0);
-  }
-  // red
-  createPiece("炮","red",1,7); createPiece("炮","red",7,7);
-  for (let i = 0; i < 9; i += 2) createPiece("兵","red",i,6);
-  // black
-  createPiece("砲","black",1,2); createPiece("砲","black",7,2);
-  for (let i = 0; i < 9; i += 2) createPiece("卒","black",i,3);
+    // đổi lượt
+    turn = (turn==='red') ? 'black' : 'red';
+    updateTurn();
+    clearSelect();
+  };
+
+  // khởi tạo
+  updateTurn();
+  mountAll();
 })();
-
-// ===== Highlight khung chọn =====
-const hl = document.createElement("div");
-hl.className = "hl";
-hl.style.display = "none";
-board.appendChild(hl);
-
-function showHLAt(x, y) {
-  hl.style.display = "block";
-  hl.style.left = (x * CELL + PAD) + "px";
-  hl.style.top  = (y * CELL + PAD) + "px";
-}
-function hideHL() { hl.style.display = "none"; }
-
-// =====-helpers=====
-function pieceAt(x, y) {
-  return pieces.find(pp => +pp.dataset.x === x && +pp.dataset.y === y);
-}
-function inside(x, y) { return x >= 0 && x <= 8 && y >= 0 && y <= 9; }
-
-// ===== Click trên bàn (đi quân) =====
-board.addEventListener("click", (e) => {
-  if (!selected) return;
-
-  // chuyển tọa độ pixel -> ô
-  const rect = board.getBoundingClientRect();
-  const relX = e.clientX - rect.left - PAD; // trừ PAD vì quân cũng lệch PAD
-  const relY = e.clientY - rect.top  - PAD;
-
-  const x = Math.round(relX / CELL);
-  const y = Math.round(relY / CELL);
-  if (!inside(x, y)) return;
-
-  const sx = +selected.dataset.x;
-  const sy = +selected.dataset.y;
-
-  // chặn đứng nếu click lại chính ô đang đứng
-  if (x === sx && y === sy) return;
-
-  // Nếu có quân ở đích
-  const target = pieceAt(x, y);
-  if (target) {
-    // không được ăn quân cùng màu
-    if (target.dataset.color === selected.dataset.color) { return; }
-    // ăn quân đối phương
-    board.removeChild(target);
-    const idx = pieces.indexOf(target);
-    if (idx >= 0) pieces.splice(idx, 1);
-  }
-
-  // di chuyển
-  selected.dataset.x = String(x);
-  selected.dataset.y = String(y);
-  positionPiece(selected, x, y);
-
-  // bỏ highlight & đổi lượt
-  hideHL();
-  selected = null;
-  currentTurn = (currentTurn === "red") ? "black" : "red";
-  setTurnText();
-});
