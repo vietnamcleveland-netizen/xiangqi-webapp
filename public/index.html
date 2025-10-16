@@ -5,190 +5,240 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Chinese Chess (Xiangqi)</title>
 <style>
-  :root { --cell:60; }
-  *{box-sizing:border-box;margin:0;padding:0;}
-  body{background:#f4f4f4;font-family:Arial,Helvetica,sans-serif;text-align:center;color:#222;}
-  h1{color:#b22222;margin:16px 0 6px;}
-  #turn{color:#666;margin-bottom:12px;font-size:14px;}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#f4f4f4;font-family:Arial,Helvetica,sans-serif;color:#222;text-align:center}
+  h1{color:#b22222;margin:16px 0 6px}
+  #turn{color:#666;margin-bottom:12px;font-size:14px}
 
-  /* bàn cờ cố định tỉ lệ 9:10 */
-  #board{
+  /* Khung giữ tỉ lệ 9:10 */
+  .board-wrap{
+    width:min(92vw, 720px);
+    aspect-ratio: 9/10;
+    margin:0 auto 32px;
     position:relative;
-    width:min(92vw,540px);
-    aspect-ratio:9/10;
-    margin:0 auto 40px;
-    background:#f3c78b;
-    border-radius:6px;
-    box-shadow:0 4px 10px rgba(0,0,0,.1);
-    overflow:hidden;
   }
-  svg{
-    position:absolute;inset:0;width:100%;height:100%;
-    shape-rendering:crispEdges;
-  }
-  line,rect{stroke:#5e3416;vector-effect:non-scaling-stroke;}
-  rect#river{fill:#e4aa5f;}
-  text{fill:#5c3717;font-size:28px;font-weight:700;user-select:none;}
+  canvas#board{position:absolute;inset:0;width:100%;height:100%}
 
+  /* Quân cờ */
   .piece{
-    position:absolute;width:50px;height:50px;border-radius:50%;
-    display:flex;align-items:center;justify-content:center;
-    background:#fff;font-weight:bold;font-size:22px;cursor:pointer;
-    user-select:none;z-index:5;transform:translate(-50%,-50%);
+    position:absolute;width:52px;height:52px;transform:translate(-50%,-50%);
+    border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;
+    font-weight:700;font-size:22px;user-select:none;cursor:pointer;z-index:5
   }
-  .red{color:#d32f2f;border:3px solid #d32f2f;}
-  .black{color:#000;border:3px solid #000;}
-  .hl{
-    position:absolute;width:50px;height:50px;border:3px solid #ffd54f;
-    border-radius:8px;z-index:4;pointer-events:none;transform:translate(-50%,-50%);
-    box-shadow:0 0 8px rgba(0,0,0,.3) inset;
-  }
+  .red{color:#d32f2f;border:3px solid #d32f2f}
+  .black{color:#000;border:3px solid #000}
+  .sel{outline:3px solid #ffd54f;outline-offset:2px;box-shadow:0 0 8px rgba(0,0,0,.25) inset}
+
+  /* Tự co kích thước quân theo CELL tính được */
+  .piece[data-cell]{ width:calc(var(--cell-px) - 8px); height:calc(var(--cell-px) - 8px); font-size:calc(var(--cell-px) * .38) }
 </style>
 </head>
 <body>
-<h1>Chinese Chess (Xiangqi)</h1>
-<div id="turn">Red to move</div>
+  <h1>Chinese Chess (Xiangqi)</h1>
+  <div id="turn">Red to move</div>
 
-<div id="board">
-  <svg viewBox="0 0 540 600" preserveAspectRatio="xMidYMid meet">
-    <!-- viền ngoài -->
-    <rect x="0.5" y="0.5" width="539" height="599" fill="none" stroke="#5e3416" stroke-width="1"/>
-
-    <!-- ngang -->
-    <g stroke-width="1">
-      <line x1="0.5" y1="0.5" x2="539.5" y2="0.5"/>
-      <line x1="0.5" y1="60.5" x2="539.5" y2="60.5"/>
-      <line x1="0.5" y1="120.5" x2="539.5" y2="120.5"/>
-      <line x1="0.5" y1="180.5" x2="539.5" y2="180.5"/>
-      <line x1="0.5" y1="240.5" x2="539.5" y2="240.5"/>
-      <line x1="0.5" y1="300.5" x2="539.5" y2="300.5"/>
-      <line x1="0.5" y1="360.5" x2="539.5" y2="360.5"/>
-      <line x1="0.5" y1="420.5" x2="539.5" y2="420.5"/>
-      <line x1="0.5" y1="480.5" x2="539.5" y2="480.5"/>
-      <line x1="0.5" y1="540.5" x2="539.5" y2="540.5"/>
-      <line x1="0.5" y1="599.5" x2="539.5" y2="599.5"/>
-    </g>
-
-    <!-- dọc -->
-    <g stroke-width="1">
-      <line x1="0.5" y1="0.5" x2="0.5" y2="599.5"/>
-      <line x1="60.5" y1="0.5" x2="60.5" y2="240.5"/><line x1="60.5" y1="360.5" x2="60.5" y2="599.5"/>
-      <line x1="120.5" y1="0.5" x2="120.5" y2="240.5"/><line x1="120.5" y1="360.5" x2="120.5" y2="599.5"/>
-      <line x1="180.5" y1="0.5" x2="180.5" y2="240.5"/><line x1="180.5" y1="360.5" x2="180.5" y2="599.5"/>
-      <line x1="240.5" y1="0.5" x2="240.5" y2="240.5"/><line x1="240.5" y1="360.5" x2="240.5" y2="599.5"/>
-      <line x1="300.5" y1="0.5" x2="300.5" y2="240.5"/><line x1="300.5" y1="360.5" x2="300.5" y2="599.5"/>
-      <line x1="360.5" y1="0.5" x2="360.5" y2="240.5"/><line x1="360.5" y1="360.5" x2="360.5" y2="599.5"/>
-      <line x1="420.5" y1="0.5" x2="420.5" y2="240.5"/><line x1="420.5" y1="360.5" x2="420.5" y2="599.5"/>
-      <line x1="480.5" y1="0.5" x2="480.5" y2="240.5"/><line x1="480.5" y1="360.5" x2="480.5" y2="599.5"/>
-      <line x1="539.5" y1="0.5" x2="539.5" y2="599.5"/>
-    </g>
-
-    <!-- sông -->
-    <rect id="river" x="0.5" y="300.5" width="539" height="60"/>
-    <text x="210" y="338">楚河</text>
-    <text x="310" y="338">漢界</text>
-
-    <!-- chéo cung -->
-    <clipPath id="pal-top"><rect x="180.5" y="0.5" width="180" height="120"/></clipPath>
-    <clipPath id="pal-bot"><rect x="180.5" y="480.5" width="180" height="120"/></clipPath>
-    <g clip-path="url(#pal-top)">
-      <line x1="180.5" y1="0.5" x2="360.5" y2="120.5"/>
-      <line x1="360.5" y1="0.5" x2="180.5" y2="120.5"/>
-    </g>
-    <g clip-path="url(#pal-bot)">
-      <line x1="180.5" y1="480.5" x2="360.5" y2="600.5"/>
-      <line x1="360.5" y1="480.5" x2="180.5" y2="600.5"/>
-    </g>
-  </svg>
-</div>
+  <div class="board-wrap">
+    <canvas id="board"></canvas>
+  </div>
 
 <script>
-(() => {
-  const CELL=60, ORI=0.5;
-  const board=document.getElementById('board');
-  const turnEl=document.getElementById('turn');
-  const toPx=(c,r)=>({x:ORI+c*CELL,y:ORI+r*CELL});
-  const posKey=(c,r)=>`${c},${r}`;
-  let turn='red', selected=null, hl=null;
-  const pieces=[], byId=new Map(), pos=new Map();
-  const add=(txt,color,c,r)=>{const id=`${txt}_${color}_${c}_${r}`;pieces.push({id,txt,color,c,r});};
+(function(){
+  // ========= CẤU HÌNH =========
+  const wrap = document.querySelector('.board-wrap');
+  const canvas = document.getElementById('board');
+  const ctx = canvas.getContext('2d');
+  const turnEl = document.getElementById('turn');
 
-  // đen (trên)
-  '车马象士将士象马车'.split('').forEach((t,i)=>add(t,'black',i,0));
-  add('炮','black',1,2);add('炮','black',7,2);
-  [0,2,4,6,8].forEach(c=>add('卒','black',c,3));
-  // đỏ (dưới)
-  '车马相仕帅仕相马车'.split('').forEach((t,i)=>add(t,'red',i,9));
-  add('炮','red',1,7);add('炮','red',7,7);
-  [0,2,4,6,8].forEach(c=>add('兵','red',c,6));
+  // 9 cột (files 0..8), 10 hàng (ranks 0..9)
+  const COLS = 9, ROWS = 10;
+  let CELL = 60; // sẽ tính động theo kích thước thật
+  let turn = 'red';
+  const pieces = [];
+  const pos = new Map(); // key "c,r" -> piece
 
-  const updateTurn=()=>turnEl.textContent=(turn==='red'?'Red':'Black')+' to move';
+  const key = (c,r) => `${c},${r}`;
+  const toPx = (c,r) => ({ x: c*CELL + .5, y: r*CELL + .5 });
 
-  const mount=()=>{
-    [...board.querySelectorAll('.piece,.hl')].forEach(n=>n.remove());
-    byId.clear();pos.clear();
-    pieces.forEach(p=>{
-      const el=document.createElement('div');
-      el.className=`piece ${p.color}`;
-      el.textContent=p.txt;
-      const {x,y}=toPx(p.c,p.r);
-      el.style.left=`${x}px`;el.style.top=`${y}px`;
-      el.dataset.id=p.id;
-      el.addEventListener('click',onPiece);
-      board.appendChild(el);
-      byId.set(p.id,el);
-      pos.set(posKey(p.c,p.r),p.id);
-    });
-  };
+  function setCanvasSize(){
+    const w = wrap.clientWidth;
+    const h = wrap.clientHeight;
+    canvas.width = Math.round(w);
+    canvas.height = Math.round(h);
+    // CELL là khoảng cách giữa các điểm giao
+    CELL = Math.min(Math.round(canvas.width / COLS), Math.round(canvas.height / ROWS));
+    // cập nhật CSS variable để scale quân
+    document.documentElement.style.setProperty('--cell-px', CELL + 'px');
+    drawBoard();
+    placeAll();
+  }
 
-  const pieceAt=(c,r)=>{const id=pos.get(posKey(c,r));return id?pieces.find(p=>p.id===id):null;};
-  const select=p=>{
-    selected=p;
-    if(!hl){hl=document.createElement('div');hl.className='hl';board.appendChild(hl);}
-    const {x,y}=toPx(p.c,p.r);
-    hl.style.left=`${x}px`;hl.style.top=`${y}px`;
-  };
-  const clearSel=()=>{selected=null;if(hl){hl.remove();hl=null;}};
+  function drawBoard(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = '#5e3416';
+    // nền
+    ctx.fillStyle = '#f3c78b';
+    ctx.fillRect(0,0, CELL*COLS, CELL*ROWS);
 
-  const onPiece=e=>{
-    const p=pieces.find(x=>x.id===e.currentTarget.dataset.id);
-    if(!p)return;
-    if(selected && selected.id!==p.id){
-      if(selected.color!==p.color){moveTo(selected,p.c,p.r,true);}
-      else select(p);return;
+    // HORIZONTALS (y=0..9)
+    for(let r=0;r<=9;r++){
+      ctx.beginPath();
+      ctx.moveTo(0.5, r*CELL + .5);
+      ctx.lineTo(CELL*COLS - .5, r*CELL + .5);
+      ctx.stroke();
     }
-    if(p.color!==turn)return;
-    select(p);
-  };
 
-  board.addEventListener('click',e=>{
-    if(e.target.classList.contains('piece'))return;
-    if(!selected)return;
-    const rect=board.getBoundingClientRect();
-    const c=Math.max(0,Math.min(8,Math.round((e.clientX-rect.left-ORI)/CELL)));
-    const r=Math.max(0,Math.min(9,Math.round((e.clientY-rect.top-ORI)/CELL)));
-    const t=pieceAt(c,r);
-    if(t && t.color===selected.color)return;
-    moveTo(selected,c,r,!!t);
+    // VERTICALS (x=0..8), có tách sông ở x=1..7
+    for(let c=0;c<=8;c++){
+      ctx.beginPath();
+      ctx.moveTo(c*CELL + .5, 0.5);
+      if(c===0 || c===8){
+        // cột ngoài chạy liền mạch
+        ctx.lineTo(c*CELL + .5, CELL*ROWS - .5);
+      }else{
+        // trên sông
+        ctx.lineTo(c*CELL + .5, 4*CELL + .5);
+        ctx.moveTo(c*CELL + .5, 5*CELL + .5);
+        // dưới sông
+        ctx.lineTo(c*CELL + .5, CELL*ROWS - .5);
+      }
+      ctx.stroke();
+    }
+
+    // SÔNG
+    ctx.fillStyle = '#e0a458';
+    ctx.fillRect(0.5, 4*CELL + .5, CELL*COLS - 1, CELL - 1);
+    // Chữ
+    ctx.fillStyle = '#5c3717';
+    ctx.font = `${Math.round(CELL*.6)}px Arial`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('楚河', 3*CELL, 4.5*CELL);
+    ctx.fillText('漢界', 6*CELL, 4.5*CELL);
+
+    // Chéo cung (trên & dưới) 3×3
+    // Trên (cột 3..5, hàng 0..2)
+    drawDiag(3,0);
+    // Dưới (cột 3..5, hàng 7..9)
+    drawDiag(3,7);
+
+    function drawDiag(c0,r0){
+      const a = toPx(c0, r0), b = toPx(c0+2, r0+2);
+      const c = toPx(c0+2, r0), d = toPx(c0, r0+2);
+      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(c.x, c.y); ctx.lineTo(d.x, d.y); ctx.stroke();
+    }
+
+    // viền
+    ctx.lineWidth = 2;
+    ctx.strokeRect(0.5,0.5, CELL*COLS-1, CELL*ROWS-1);
+  }
+
+  // ======== QUÂN CỜ & BỐ TRÍ ========
+  function addPiece(txt,color,c,r){
+    const el = document.createElement('div');
+    el.className = `piece ${color}`;
+    el.textContent = txt;
+    el.dataset.color = color;
+    el.dataset.c = c;
+    el.dataset.r = r;
+    el.setAttribute('data-cell','1'); // để scale theo --cell-px
+    wrap.appendChild(el);
+    pieces.push(el);
+    pos.set(key(c,r), el);
+    moveToPixel(el, c, r);
+    el.addEventListener('click', onClickPiece);
+  }
+
+  function moveToPixel(el,c,r){
+    const {x,y} = toPx(c,r);
+    el.style.left = (wrap.offsetLeft + x) + 'px'; // nhưng wrap là relative → dùng offset trong wrap
+    // Vì .piece là absolutely positioned vào .board-wrap (relative), ta chỉ cần tọa độ local:
+    el.style.left = x + 'px';
+    el.style.top  = y + 'px';
+    el.dataset.c = c; el.dataset.r = r;
+  }
+
+  function placeAll(){
+    // xóa & đặt lại top/left theo CELL mới
+    pieces.forEach(el => moveToPixel(el, +el.dataset.c, +el.dataset.r));
+  }
+
+  // Khởi tạo 32 quân
+  function setupPieces(){
+    // Đen (trên)
+    '车马象士将士象马车'.split('').forEach((t,i)=> addPiece(t,'black', i, 0));
+    addPiece('炮','black',1,2); addPiece('炮','black',7,2);
+    [0,2,4,6,8].forEach(c=> addPiece('卒','black',c,3));
+    // Đỏ (dưới)
+    '车马相仕帅仕相马车'.split('').forEach((t,i)=> addPiece(t,'red', i, 9));
+    addPiece('炮','red',1,7); addPiece('炮','red',7,7);
+    [0,2,4,6,8].forEach(c=> addPiece('兵','red',c,6));
+  }
+
+  // ======== TƯƠNG TÁC (kéo – thả đơn giản, chưa kiểm luật) ========
+  let selected = null;
+  function onClickPiece(e){
+    const el = e.currentTarget;
+    if(selected && selected !== el){
+      // khác màu → ăn
+      if(selected.dataset.color !== el.dataset.color){
+        tryMoveTo(+el.dataset.c, +el.dataset.r);
+      }else{
+        // cùng màu → đổi chọn
+        selected.classList.remove('sel');
+        selected = el;
+        selected.classList.add('sel');
+      }
+      return;
+    }
+    // chọn / bỏ chọn
+    if(el.dataset.color !== turn) return; // tới lượt đối phương thì không chọn
+    if(selected === el){ el.classList.remove('sel'); selected=null; return; }
+    if(selected) selected.classList.remove('sel');
+    selected = el; selected.classList.add('sel');
+  }
+
+  // click trống để đi tới ô đó
+  wrap.addEventListener('click', (e)=>{
+    if(!selected) return;
+    if(e.target.classList.contains('piece')) return;
+    const rect = canvas.getBoundingClientRect();
+    const cx = Math.round((e.clientX - rect.left - .5)/CELL);
+    const cy = Math.round((e.clientY - rect.top  - .5)/CELL);
+    if(cx<0||cx>8||cy<0||cy>9) return;
+    if(pos.get(key(cx,cy))) return; // đã có quân
+    tryMoveTo(cx,cy);
   });
 
-  const moveTo=(p,c,r,cap=false)=>{
-    pos.delete(posKey(p.c,p.r));
-    if(cap){
-      const v=pieceAt(c,r);
-      if(v){
-        pieces.splice(pieces.findIndex(x=>x.id===v.id),1);
-        byId.get(v.id)?.remove();
-        pos.delete(posKey(c,r));
-      }
-    }
-    p.c=c;p.r=r;pos.set(posKey(c,r),p.id);
-    const el=byId.get(p.id);const {x,y}=toPx(c,r);
-    el.style.left=`${x}px`;el.style.top=`${y}px`;
-    turn=turn==='red'?'black':'red';updateTurn();clearSel();
-  };
+  function tryMoveTo(c,r){
+    // Chưa kiểm tra luật: chỉ di chuyển/ăn cơ bản
+    const oc = +selected.dataset.c, or = +selected.dataset.r;
+    pos.delete(key(oc,or));
 
-  updateTurn();mount();
+    const victim = pos.get(key(c,r));
+    if(victim){
+      victim.remove();
+      pieces.splice(pieces.indexOf(victim),1);
+      pos.delete(key(c,r));
+    }
+
+    moveToPixel(selected,c,r);
+    pos.set(key(c,r), selected);
+    selected.classList.remove('sel');
+    selected = null;
+
+    turn = (turn==='red' ? 'black' : 'red');
+    turnEl.textContent = (turn==='red'?'Red':'Black') + ' to move';
+  }
+
+  // ======== BOOTSTRAP ========
+  setupPieces();
+  // resize + vẽ
+  const ro = new ResizeObserver(setCanvasSize);
+  ro.observe(wrap);
+  window.addEventListener('orientationchange', setCanvasSize);
+  setCanvasSize();
 })();
 </script>
 </body>
