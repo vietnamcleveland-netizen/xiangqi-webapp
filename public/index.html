@@ -1,1 +1,500 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Cờ Tướng (Xiangqi)</title>
+<style>
+  :root{
+    --cell:64;               /* kích thước 1 ô */
+    --cols:9;                /* 9 cột */
+    --rows:10;               /* 10 hàng */
+    --board-w: calc(var(--cell) * var(--cols));
+    --board-h: calc(var(--cell) * var(--rows));
+  }
+  body{
+    margin:0; font-family: system-ui, Arial, sans-serif;
+    background:#f5f5f5; color:#222;
+  }
+  h1{
+    text-align:center; margin:18px 0 6px; color:#b02323; letter-spacing:.5px;
+  }
+  #turn{
+    text-align:center; font-size:14px; color:#666; margin-bottom:10px;
+  }
 
+  /* vùng giữ bàn cờ */
+  .wrap{
+    display:flex; justify-content:center;
+  }
+
+  /* Khung nền kiểu truyền thống (vẽ bằng SVG inline) */
+  .board{
+    position:relative;
+    width:var(--board-w);
+    height:var(--board-h);
+    border-radius:8px;
+    box-shadow:0 2px 18px rgba(0,0,0,.15);
+    background:
+      /* viền xanh giản lược */
+      radial-gradient(circle at 18px 18px, #39a76a 0 8px, transparent 9px) top left / 64px 64px no-repeat,
+      radial-gradient(circle at calc(100% - 18px) 18px, #39a76a 0 8px, transparent 9px) top right / 64px 64px no-repeat,
+      radial-gradient(circle at 18px calc(100% - 18px), #39a76a 0 8px, transparent 9px) bottom left / 64px 64px no-repeat,
+      radial-gradient(circle at calc(100% - 18px) calc(100% - 18px), #39a76a 0 8px, transparent 9px) bottom right / 64px 64px no-repeat,
+      #e9c291;
+    padding:18px;            /* khung xanh */
+    box-sizing:content-box;
+  }
+  /* Lớp SVG vẽ lưới, sông, cung, dấu thập */
+  svg.board-svg{
+    position:absolute; inset:0; width:100%; height:100%;
+    background:#efc68d; border:4px solid #7b4b24; border-radius:6px;
+  }
+
+  /* lớp overlay để bắt click theo ô */
+  .cells{ position:absolute; inset:0; }
+  .cell{
+    position:absolute; width:var(--cell); height:var(--cell);
+  }
+
+  /* Quân cờ */
+  .piece{
+    position:absolute; width:var(--cell); height:var(--cell);
+    transform: translate(-50%, -50%); /* đặt tại giao điểm lưới */
+    display:grid; place-items:center;
+    pointer-events:auto; cursor:pointer;
+  }
+  .disc{
+    width: calc(var(--cell) - 10px);
+    height: calc(var(--cell) - 10px);
+    border-radius:50%;
+    background:#fff; border:3px solid #111; box-shadow:0 2px 6px rgba(0,0,0,.25) inset;
+    display:grid; place-items:center; font-weight:700; font-size: calc(var(--cell) * .42);
+    user-select:none;
+  }
+  .red .disc{ color:#e53935; border-color:#b31f1d; }
+  .black .disc{ color:#111; }
+
+  /* gợi ý ô đi hợp lệ */
+  .hint{
+    position:absolute; width:14px; height:14px; border-radius:50%;
+    background:rgba(76,175,80,.9); box-shadow:0 0 0 6px rgba(76,175,80,.18);
+    transform: translate(-50%, -50%);
+    pointer-events:none;
+  }
+  .capture{
+    background:rgba(229,57,53,.95); box-shadow:0 0 0 6px rgba(229,57,53,.18);
+  }
+
+  /* tiện ích */
+  .controls{ text-align:center; margin:14px 0; }
+  button{ padding:8px 12px; border-radius:6px; border:1px solid #bbb; background:#fff; cursor:pointer; }
+  button:hover{ background:#f3f3f3; }
+  .legend{ max-width:900px; margin:16px auto 28px; color:#444; font-size:14px; line-height:1.55; padding:0 10px; }
+</style>
+</head>
+<body>
+  <h1>Cờ Tướng (Xiangqi)</h1>
+  <div id="turn">Red to move</div>
+
+  <div class="wrap">
+    <div id="board" class="board">
+      <!-- SVG nền bàn cờ 9×10 (lưới là các đường ở “giao điểm”) -->
+      <svg class="board-svg" viewBox="0 0 900 1000" preserveAspectRatio="none" aria-hidden="true">
+        <!-- nền -->
+        <rect x="0" y="0" width="900" height="1000" rx="8" fill="#efc68d"/>
+
+        <!-- khung nâu -->
+        <rect x="6" y="6" width="888" height="988" rx="6" fill="none" stroke="#7b4b24" stroke-width="12"/>
+
+        <!-- lưới: 9 cột (x0..x8), 10 hàng (y0..y9) -->
+        <g stroke="#6d421f" stroke-width="2.2">
+          <!-- dọc -->
+          <!-- x = 0..8 every 100 -->
+          <path d="M 50 50 V 450" />
+          <path d="M 150 50 V 450" />
+          <path d="M 250 50 V 450" />
+          <path d="M 350 50 V 450" />
+          <path d="M 450 50 V 450" />
+          <path d="M 550 50 V 450" />
+          <path d="M 650 50 V 450" />
+          <path d="M 750 50 V 450" />
+          <path d="M 850 50 V 450" />
+          <!-- phần dưới sông -->
+          <path d="M 50 550 V 950" />
+          <path d="M 150 550 V 950" />
+          <path d="M 250 550 V 950" />
+          <path d="M 350 550 V 950" />
+          <path d="M 450 550 V 950" />
+          <path d="M 550 550 V 950" />
+          <path d="M 650 550 V 950" />
+          <path d="M 750 550 V 950" />
+          <path d="M 850 550 V 950" />
+          <!-- ngang: y = 0..9 every 100 -->
+          <path d="M 50 50 H 850" />
+          <path d="M 50 150 H 850" />
+          <path d="M 50 250 H 850" />
+          <path d="M 50 350 H 850" />
+          <path d="M 50 450 H 850" />
+          <path d="M 50 550 H 850" />
+          <path d="M 50 650 H 850" />
+          <path d="M 50 750 H 850" />
+          <path d="M 50 850 H 850" />
+          <path d="M 50 950 H 850" />
+        </g>
+
+        <!-- cung tướng (chéo X) -->
+        <g stroke="#6d421f" stroke-width="2.2">
+          <path d="M 350 50 L 550 250" />
+          <path d="M 550 50 L 350 250" />
+          <path d="M 350 750 L 550 950" />
+          <path d="M 550 750 L 350 950" />
+        </g>
+
+        <!-- sông -->
+        <rect x="50" y="450" width="800" height="100" fill="#d19752"/>
+        <g font-size="56" font-weight="700" fill="#6d421f" text-anchor="middle">
+          <text x="420" y="515">楚河</text>
+          <text x="580" y="515">漢界</text>
+        </g>
+
+        <!-- dấu thập (+) tại các điểm tốt/pháo -->
+        <g stroke="#6d421f" stroke-width="2">
+          <!-- hàng 3 (y=250) cột 1,3,5,7 -->
+          <g transform="translate(150,250)"><path d="M-10 0 H10 M0-10 V10"/></g>
+          <g transform="translate(350,250)"><path d="M-10 0 H10 M0-10 V10"/></g>
+          <g transform="translate(550,250)"><path d="M-10 0 H10 M0-10 V10"/></g>
+          <g transform="translate(750,250)"><path d="M-10 0 H10 M0-10 V10"/></g>
+          <!-- hàng 6 (y=750) cột 1,3,5,7 -->
+          <g transform="translate(150,750)"><path d="M-10 0 H10 M0-10 V10"/></g>
+          <g transform="translate(350,750)"><path d="M-10 0 H10 M0-10 V10"/></g>
+          <g transform="translate(550,750)"><path d="M-10 0 H10 M0-10 V10"/></g>
+          <g transform="translate(750,750)"><path d="M-10 0 H10 M0-10 V10"/></g>
+          <!-- pháo (y=150, y=850) cột 1 và 7 -->
+          <g transform="translate(150,150)"><path d="M-10 0 H10 M0-10 V10"/></g>
+          <g transform="translate(750,150)"><path d="M-10 0 H10 M0-10 V10"/></g>
+          <g transform="translate(150,850)"><path d="M-10 0 H10 M0-10 V10"/></g>
+          <g transform="translate(750,850)"><path d="M-10 0 H10 M0-10 V10"/></g>
+        </g>
+      </svg>
+
+      <!-- lớp bắt click từng ô (lưới 9×10, giao điểm cách 100 SVG units) -->
+      <div class="cells" id="cells"></div>
+
+      <!-- quân sẽ gắn tại đây -->
+      <div id="pieces"></div>
+      <div id="hints"></div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button id="reset">Ván mới</button>
+    <button id="flip">Đổi hướng bàn</button>
+  </div>
+
+  <div class="legend">
+    <strong>Mẹo:</strong> Bấm chọn 1 quân để hiện nước đi hợp lệ (chấm xanh). Chấm đỏ là ô có thể “ăn”.  
+    Có đầy đủ luật chặn chân mã, cản mắt tượng, pháo phải có “lót” khi ăn, cung tướng, không cho tướng đối mặt.
+  </div>
+
+<script>
+/* ===== TỌA ĐỘ & TIỆN ÍCH ===== */
+const CELL = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--cell'))||64;
+const COLS = 9, ROWS = 10;
+let flipped = false; // đổi hướng bàn
+
+const xy2px = (x,y)=>({ left: (x*CELL)+'px', top: (y*CELL)+'px' });
+const toScreen = (x,y)=> flipped ? ({x: COLS-1-x, y: ROWS-1-y}) : ({x,y});
+const fromScreen = (sx,sy)=> flipped ? ({x: COLS-1-sx, y: ROWS-1-sy}) : ({x:sx,y:sy});
+
+/* ===== KHỞI TẠO Ô CLICK ===== */
+const cellsEl = document.getElementById('cells');
+cellsEl.style.width = `calc(var(--cell)*${COLS})`;
+cellsEl.style.height = `calc(var(--cell)*${ROWS})`;
+for(let y=0;y<ROWS;y++){
+  for(let x=0;x<COLS;x++){
+    const c=document.createElement('div');
+    c.className='cell';
+    const s = toScreen(x,y);
+    Object.assign(c.style, {left:s.x*CELL+'px', top:s.y*CELL+'px'});
+    c.dataset.x=x; c.dataset.y=y;
+    cellsEl.appendChild(c);
+  }
+}
+
+/* ===== TRẠNG THÁI VÁN CỜ ===== */
+const RED='red', BLACK='black';
+const initial = () => ([
+  // đen (trên)
+  {t:'r', c:BLACK, x:0, y:0},{t:'n', c:BLACK, x:1, y:0},{t:'b', c:BLACK, x:2, y:0},{t:'a', c:BLACK, x:3, y:0},{t:'k', c:BLACK, x:4, y:0},{t:'a', c:BLACK, x:5, y:0},{t:'b', c:BLACK, x:6, y:0},{t:'n', c:BLACK, x:7, y:0},{t:'r', c:BLACK, x:8, y:0},
+  {t:'c', c:BLACK, x:1, y:2},{t:'c', c:BLACK, x:7, y:2},
+  {t:'p', c:BLACK, x:0, y:3},{t:'p', c:BLACK, x:2, y:3},{t:'p', c:BLACK, x:4, y:3},{t:'p', c:BLACK, x:6, y:3},{t:'p', c:BLACK, x:8, y:3},
+  // đỏ (dưới)
+  {t:'r', c:RED, x:0, y:9},{t:'n', c:RED, x:1, y:9},{t:'b', c:RED, x:2, y:9},{t:'a', c:RED, x:3, y:9},{t:'k', c:RED, x:4, y:9},{t:'a', c:RED, x:5, y:9},{t:'b', c:RED, x:6, y:9},{t:'n', c:RED, x:7, y:9},{t:'r', c:RED, x:8, y:9},
+  {t:'c', c:RED, x:1, y:7},{t:'c', c:RED, x:7, y:7},
+  {t:'p', c:RED, x:0, y:6},{t:'p', c:RED, x:2, y:6},{t:'p', c:RED, x:4, y:6},{t:'p', c:RED, x:6, y:6},{t:'p', c:RED, x:8, y:6},
+]);
+let pieces = initial();
+let turn = RED;
+
+const textOf = (t,c)=> {
+  const R = {r:'車', n:'馬', b:'相', a:'仕', k:'帥', c:'炮', p:'兵'};
+  const B = {r:'車', n:'馬', b:'象', a:'士', k:'將', c:'砲', p:'卒'};
+  return c===RED?R[t]:B[t];
+};
+
+/* ===== VẼ QUÂN ===== */
+const piecesEl = document.getElementById('pieces');
+const hintsEl = document.getElementById('hints');
+function renderPieces(){
+  piecesEl.innerHTML='';
+  for(const p of pieces){
+    const div = document.createElement('div');
+    div.className = `piece ${p.c}`;
+    const s = toScreen(p.x,p.y);
+    Object.assign(div.style, { left:(s.x*CELL+CELL/2)+'px', top:(s.y*CELL+CELL/2)+'px' });
+    div.dataset.x = p.x; div.dataset.y = p.y;
+
+    const disc = document.createElement('div');
+    disc.className='disc'; disc.textContent = textOf(p.t,p.c);
+    div.appendChild(disc);
+
+    div.addEventListener('click', e => onSelect(p));
+    piecesEl.appendChild(div);
+  }
+  document.getElementById('turn').textContent = (turn===RED?'Red':'Black')+' to move';
+}
+function pieceAt(x,y){ return pieces.find(p=>p.x===x && p.y===y); }
+function inBoard(x,y){ return x>=0&&x<COLS&&y>=0&&y<ROWS; }
+const sameColor=(a,b)=> a&&b&&a.c===b.c;
+
+/* ===== TÍNH NƯỚC ĐI ===== */
+function pathClear(x1,y1,x2,y2){      // không kể điểm đầu
+  let dx = Math.sign(x2-x1), dy = Math.sign(y2-y1);
+  let x=x1+dx, y=y1+dy;
+  while(!(x===x2 && y===y2)){
+    if(pieceAt(x,y)) return false;
+    x+=dx; y+=dy;
+  }
+  return true;
+}
+function countBetween(x1,y1,x2,y2){
+  let dx = Math.sign(x2-x1), dy = Math.sign(y2-y1);
+  let x=x1+dx, y=y1+dy, n=0;
+  while(!(x===x2 && y===y2)){ if(pieceAt(x,y)) n++; x+=dx; y+=dy; }
+  return n;
+}
+function palace(x,y,c){
+  const xr = x>=3 && x<=5;
+  return c===RED ? (xr && y>=7 && y<=9) : (xr && y>=0 && y<=2);
+}
+function crossedRiver(p){ return p.c===RED ? (p.y<=4) : (p.y>=5); }
+function flyingGeneral(blocks, nx,ny){
+  // Nếu 2 tướng trên cùng cột và không có quân giữa => cấm đặt tướng vào vị trí đối mặt
+  let kRed = pieces.find(p=>p.t==='k' && p.c===RED);
+  let kBlk = pieces.find(p=>p.t==='k' && p.c===BLACK);
+  if(!kRed||!kBlk) return false;
+  // giả lập vị trí nếu p đang đi đến (nx,ny) đã cập nhật ngoài
+  const sameFile = kRed.x===kBlk.x;
+  if(!sameFile) return false;
+  const topY = Math.min(kRed.y,kBlk.y), botY=Math.max(kRed.y,kBlk.y);
+  let between = 0;
+  for(let y=topY+1;y<botY;y++){
+    if(blocks.some(b=>b.x===kRed.x && b.y===y)) between++;
+  }
+  return between===0;
+}
+
+function movesFor(p){
+  const mv=[];
+  const add=(x,y,cap=false)=>{
+    if(!inBoard(x,y)) return;
+    const t = pieceAt(x,y);
+    if(t && t.c===p.c) return;
+    mv.push({x,y, capture: !!t});
+  };
+
+  if(p.t==='r'){ // xe
+    for(let x=p.x-1;x>=0;x--){ if(pieceAt(x,p.y)){ add(x,p.y,true); break;} add(x,p.y); }
+    for(let x=p.x+1;x<COLS;x++){ if(pieceAt(x,p.y)){ add(x,p.y,true); break;} add(x,p.y); }
+    for(let y=p.y-1;y>=0;y--){ if(pieceAt(p.x,y)){ add(p.x,y,true); break;} add(p.x,y); }
+    for(let y=p.y+1;y<ROWS;y++){ if(pieceAt(p.x,y)){ add(p.x,y,true); break;} add(p.x,y); }
+  }
+  else if(p.t==='n'){ // mã (chặn chân)
+    const legs = [
+      {lx:p.x,ly:p.y-1, tx:p.x-1,ty:p.y-2},
+      {lx:p.x,ly:p.y-1, tx:p.x+1,ty:p.y-2},
+      {lx:p.x+1,ly:p.y, tx:p.x+2,ty:p.y-1},
+      {lx:p.x+1,ly:p.y, tx:p.x+2,ty:p.y+1},
+      {lx:p.x,ly:p.y+1, tx:p.x+1,ty:p.y+2},
+      {lx:p.x,ly:p.y+1, tx:p.x-1,ty:p.y+2},
+      {lx:p.x-1,ly:p.y, tx:p.x-2,ty:p.y+1},
+      {lx:p.x-1,ly:p.y, tx:p.x-2,ty:p.y-1},
+    ];
+    for(const g of legs){
+      if(!inBoard(g.tx,g.ty)) continue;
+      if(pieceAt(g.lx,g.ly)) continue; // bị chặn chân
+      add(g.tx,g.ty);
+    }
+  }
+  else if(p.t==='b'){ // tượng / tướng tượng (cản mắt, không qua sông)
+    const steps = [[-2,-2],[2,-2],[2,2],[-2,2]];
+    for(const [dx,dy] of steps){
+      const x=p.x+dx,y=p.y+dy, eye=p.x+dx/2, ey=p.y+dy/2;
+      if(!inBoard(x,y)) continue;
+      if(p.c===RED && y<5) continue;     // đỏ không qua sông
+      if(p.c===BLACK && y>4) continue;   // đen không qua sông
+      if(pieceAt(eye,ey)) continue;      // cản mắt
+      add(x,y);
+    }
+  }
+  else if(p.t==='a'){ // sĩ (chỉ trong cung, đi chéo 1)
+    const steps=[[-1,-1],[1,-1],[1,1],[-1,1]];
+    for(const [dx,dy] of steps){
+      const x=p.x+dx, y=p.y+dy;
+      if(palace(x,y,p.c)) add(x,y);
+    }
+  }
+  else if(p.t==='k'){ // tướng
+    const steps=[[0,-1],[1,0],[0,1],[-1,0]];
+    for(const [dx,dy] of steps){
+      const x=p.x+dx, y=p.y+dy;
+      if(palace(x,y,p.c)) add(x,y);
+    }
+    // bắt tướng đối đầu thẳng hàng
+    let dir = (p.c===RED)?-1:1; // đi lên về phía đối phương
+    let y=p.y+dir;
+    while(inBoard(p.x,y)){
+      const t=pieceAt(p.x,y);
+      if(t){
+        if(t.t==='k' && t.c!==p.c) add(p.x,y,true);
+        break;
+      }
+      y+=dir;
+    }
+  }
+  else if(p.t==='c'){ // pháo: đi như xe; ăn phải có duy nhất 1 quân ở giữa
+    // trái
+    for(let x=p.x-1;x>=0;x--){
+      const t=pieceAt(x,p.y);
+      if(!t){ add(x,p.y); continue; }
+      // có tấm lót -> tìm quân đầu tiên sau đó để ăn
+      for(let x2=x-1;x2>=0;x2--){
+        const t2=pieceAt(x2,p.y);
+        if(t2){ if(t2.c!==p.c) add(x2,p.y,true); break; }
+      }
+      break;
+    }
+    // phải
+    for(let x=p.x+1;x<COLS;x++){
+      const t=pieceAt(x,p.y);
+      if(!t){ add(x,p.y); continue; }
+      for(let x2=x+1;x2<COLS;x2++){
+        const t2=pieceAt(x2,p.y);
+        if(t2){ if(t2.c!==p.c) add(x2,p.y,true); break; }
+      }
+      break;
+    }
+    // lên
+    for(let y=p.y-1;y>=0;y--){
+      const t=pieceAt(p.x,y);
+      if(!t){ add(p.x,y); continue; }
+      for(let y2=y-1;y2>=0;y2--){
+        const t2=pieceAt(p.x,y2);
+        if(t2){ if(t2.c!==p.c) add(p.x,y2,true); break; }
+      }
+      break;
+    }
+    // xuống
+    for(let y=p.y+1;y<ROWS;y++){
+      const t=pieceAt(p.x,y);
+      if(!t){ add(p.x,y); continue; }
+      for(let y2=y+1;y2<ROWS;y2++){
+        const t2=pieceAt(p.x,y2);
+        if(t2){ if(t2.c!==p.c) add(p.x,y2,true); break; }
+      }
+      break;
+    }
+  }
+  else if(p.t==='p'){ // tốt
+    const dir = p.c===RED ? -1 : 1;
+    add(p.x, p.y+dir);
+    if(crossedRiver(p)){ add(p.x-1,p.y); add(p.x+1,p.y); }
+  }
+
+  // loại bỏ các nước làm tướng mình bị đối tướng “soi thẳng”
+  const legal=[];
+  for(const m of mv){
+    const snapshot = pieces.map(o=>({...o}));
+    // thực hiện giả lập
+    const idx = snapshot.findIndex(o=>o===p);
+    // snapshot ở đây khác ref; tìm theo vị trí & type & color
+    const me = snapshot.find(o=>o.x===p.x && o.y===p.y && o.t===p.t && o.c===p.c);
+    const cap = snapshot.find(o=>o.x===m.x && o.y===m.y);
+    if(cap){ snapshot.splice(snapshot.indexOf(cap),1); }
+    me.x=m.x; me.y=m.y;
+
+    // cấm tướng đối mặt
+    const blocks = snapshot;
+    if(flyingGeneral(blocks)) continue;
+
+    legal.push(m);
+  }
+  return legal;
+}
+
+/* ===== CHỌN VÀ ĐI QUÂN ===== */
+let selected=null, legalMoves=[];
+function clearHints(){ hintsEl.innerHTML=''; }
+function showHints(){
+  clearHints();
+  for(const m of legalMoves){
+    const s = toScreen(m.x,m.y);
+    const dot = document.createElement('div');
+    dot.className = 'hint' + (m.capture?' capture':'');
+    Object.assign(dot.style, {left:(s.x*CELL+CELL/2)+'px', top:(s.y*CELL+CELL/2)+'px'});
+    hintsEl.appendChild(dot);
+  }
+}
+function onSelect(p){
+  if(p.c!==turn) return; // đến lượt bên nào
+  selected = p;
+  legalMoves = movesFor(p);
+  showHints();
+}
+
+/* click ô để đi */
+cellsEl.addEventListener('click', e=>{
+  if(!selected) return;
+  const x = +e.target.dataset.x, y= +e.target.dataset.y;
+  const mv = legalMoves.find(m=>m.x===x && m.y===y);
+  if(!mv) return;
+  // ăn
+  const cap = pieceAt(x,y);
+  if(cap){ pieces.splice(pieces.indexOf(cap),1); }
+  selected.x=x; selected.y=y;
+
+  // đổi lượt
+  turn = (turn===RED)?BLACK:RED;
+  selected=null; legalMoves=[];
+  clearHints(); renderPieces();
+});
+
+/* ===== NÚT ===== */
+document.getElementById('reset').onclick = ()=>{ pieces=initial(); turn=RED; selected=null; clearHints(); renderPieces(); };
+document.getElementById('flip').onclick = ()=>{
+  flipped = !flipped;
+  // cập nhật vị trí các cell (overlay)
+  [...cellsEl.children].forEach(el=>{
+    const x=+el.dataset.x, y=+el.dataset.y;
+    const s = toScreen(x,y);
+    Object.assign(el.style, {left:s.x*CELL+'px', top:s.y*CELL+'px'});
+  });
+  renderPieces(); clearHints();
+};
+
+/* render lần đầu */
+renderPieces();
+</script>
+</body>
+</html>
